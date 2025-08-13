@@ -14,14 +14,16 @@ import {
   Gift,
   Clock,
   AlertTriangle,
-  Palette,
   Mail,
   Upload,
   Send,
+  LogOut,
+  CreditCard,
 } from "lucide-react"
 import { format, differenceInDays } from "date-fns"
 import { PurchaseCardsModal } from "@/components/purchase-cards-modal"
 import { CsvUploadModal } from "@/components/csv-upload-modal"
+import { PaymentMethodModal } from "@/components/payment-method-modal"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 
 export default function MyHearts() {
@@ -30,6 +32,7 @@ export default function MyHearts() {
   const [hearts, setHearts] = useState<any[]>([])
   const [showPurchaseModal, setShowPurchaseModal] = useState(false)
   const [showCsvUpload, setShowCsvUpload] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [recipientLimitWarning, setRecipientLimitWarning] = useState("")
   const [mailedCardsHistory, setMailedCardsHistory] = useState<any[]>([])
 
@@ -104,11 +107,18 @@ export default function MyHearts() {
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem("currentUser") || "{}")
     if (userData && Object.keys(userData).length > 0) {
+      // Check if email is verified
+      if (!userData.emailVerified) {
+        router.push("/auth")
+        return
+      }
       setUser(userData)
       setHearts(userData.hearts || [])
       setMailedCardsHistory(userData.mailedCards || [])
+    } else {
+      router.push("/auth")
     }
-  }, [])
+  }, [router])
 
   useEffect(() => {
     if (user && user.id) {
@@ -272,22 +282,6 @@ ${user.email}`
     alert(`Successfully purchased ${quantity} additional card${quantity > 1 ? "s" : ""}! 🎉`)
   }
 
-  const handleEmailVerification = () => {
-    const updatedUser = {
-      ...user,
-      lastEmailVerification: new Date().toISOString(),
-      emailVerified: true,
-    }
-
-    setUser(updatedUser)
-    localStorage.setItem("currentUser", JSON.stringify(updatedUser))
-    localStorage.setItem("user", JSON.stringify(updatedUser))
-
-    alert(
-      "Email verification sent! Please check your inbox and click the verification link to maintain your beta pricing.",
-    )
-  }
-
   const handleCsvUpload = (newHearts: any[]) => {
     const updatedHearts = [...hearts, ...newHearts]
     const updatedUser = { ...user, hearts: updatedHearts }
@@ -300,16 +294,16 @@ ${user.email}`
     alert(`Successfully imported ${newHearts.length} hearts! 🎉`)
   }
 
+  const handleSignOut = () => {
+    if (confirm("Are you sure you want to sign out?")) {
+      localStorage.removeItem("currentUser")
+      localStorage.removeItem("user")
+      router.push("/")
+    }
+  }
+
   const totalCards = (user?.freeCards || 0) + (user?.referralCards || 0)
   const daysUntilExpiry = user?.cardCreditsExpiry ? differenceInDays(new Date(user.cardCreditsExpiry), new Date()) : 0
-
-  const needsEmailVerification = () => {
-    if (!user?.lastEmailVerification) return true
-    const lastVerification = new Date(user.lastEmailVerification)
-    const threeMonthsAgo = new Date()
-    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
-    return lastVerification < threeMonthsAgo
-  }
 
   if (!user) {
     return (
@@ -344,18 +338,30 @@ ${user.email}`
                       Beta Pricing Locked
                     </Badge>
                   )}
+                  <Badge variant="outline" className="text-green-600 border-green-600">
+                    ✓ Email Verified
+                  </Badge>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
               <Button
-                onClick={() => router.push("/card-production")}
+                onClick={() => setShowPaymentModal(true)}
                 variant="outline"
-                className="flex items-center gap-2 border-purple-500 text-purple-600 hover:bg-purple-50"
+                className="flex items-center gap-2 border-blue-500 text-blue-600 hover:bg-blue-50"
               >
-                <Palette className="w-4 h-4" />
-                Card Production
+                <CreditCard className="w-4 h-4" />
+                Payment Methods
+              </Button>
+
+              <Button
+                onClick={handleSignOut}
+                variant="outline"
+                className="flex items-center gap-2 border-red-500 text-red-600 hover:bg-red-50 bg-transparent"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
               </Button>
 
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-2">
@@ -398,25 +404,6 @@ ${user.email}`
 
           {/* Warnings and Notifications */}
           <div className="mt-4 space-y-3">
-            {needsEmailVerification() && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-red-600" />
-                  <span className="text-sm text-red-800">
-                    Quarterly email verification required. Please verify your email to maintain beta pricing.
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="ml-auto bg-transparent"
-                    onClick={handleEmailVerification}
-                  >
-                    Verify Now
-                  </Button>
-                </div>
-              </div>
-            )}
-
             {daysUntilExpiry <= 30 && daysUntilExpiry > 0 && (
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                 <div className="flex items-center gap-2">
@@ -711,6 +698,17 @@ ${user.email}`
         isOpen={showCsvUpload}
         onClose={() => setShowCsvUpload(false)}
         onUploadComplete={handleCsvUpload}
+      />
+
+      <PaymentMethodModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        user={user}
+        onUpdate={(updatedUser) => {
+          setUser(updatedUser)
+          localStorage.setItem("currentUser", JSON.stringify(updatedUser))
+          localStorage.setItem("user", JSON.stringify(updatedUser))
+        }}
       />
     </div>
   )

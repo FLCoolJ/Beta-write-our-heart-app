@@ -10,13 +10,15 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, Mail } from "lucide-react"
 
 export default function AuthPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [showPassword, setShowPassword] = useState(false)
+  const [showVerificationMessage, setShowVerificationMessage] = useState(false)
+  const [verificationEmail, setVerificationEmail] = useState("")
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState("")
@@ -35,7 +37,14 @@ export default function AuthPage() {
     // Check if user is already logged in
     const currentUser = localStorage.getItem("currentUser")
     if (currentUser) {
-      router.push("/my-hearts")
+      const userData = JSON.parse(currentUser)
+      if (userData.emailVerified) {
+        router.push("/my-hearts")
+      } else {
+        // User exists but email not verified
+        setShowVerificationMessage(true)
+        setVerificationEmail(userData.email)
+      }
     }
   }, [router])
 
@@ -59,6 +68,15 @@ export default function AuthPage() {
       // Simple password check (in production, use proper hashing)
       if (userData.password !== loginPassword) {
         setError("Invalid password")
+        setIsLoading(false)
+        return
+      }
+
+      // Check if email is verified
+      if (!userData.emailVerified) {
+        setShowVerificationMessage(true)
+        setVerificationEmail(userData.email)
+        setError("Please verify your email address before signing in. Check your inbox for the verification link.")
         setIsLoading(false)
         return
       }
@@ -110,25 +128,145 @@ export default function AuthPage() {
         return
       }
 
-      // Store temporary user data for plan selection
+      // Create verification token (expires in 24 hours)
+      const verificationToken = btoa(
+        JSON.stringify({
+          email: signupData.email,
+          exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+        }),
+      )
+
+      // Store user data (unverified)
       const tempUserData = {
         firstName: signupData.firstName,
         lastName: signupData.lastName,
         email: signupData.email,
         password: signupData.password,
         createdAt: new Date().toISOString(),
+        emailVerified: false,
+        verificationToken: verificationToken,
       }
 
+      localStorage.setItem(`user_${signupData.email}`, JSON.stringify(tempUserData))
       localStorage.setItem("tempUser", JSON.stringify(tempUserData))
 
-      console.log("Signup data stored, redirecting to plan selection")
-      router.push("/choose-plan")
+      // Send verification email
+      const emailResponse = await fetch("/api/send-verification-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: signupData.email,
+          firstName: signupData.firstName,
+          verificationToken: verificationToken,
+        }),
+      })
+
+      if (emailResponse.ok) {
+        setShowVerificationMessage(true)
+        setVerificationEmail(signupData.email)
+        console.log("Signup successful, verification email sent")
+      } else {
+        setError("Account created but failed to send verification email. Please contact support.")
+      }
     } catch (error) {
       console.error("Signup error:", error)
       setError("Signup failed. Please try again.")
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleResendVerification = async () => {
+    if (!verificationEmail) return
+
+    try {
+      const storedUser = localStorage.getItem(`user_${verificationEmail}`)
+      if (!storedUser) {
+        setError("User not found. Please sign up again.")
+        return
+      }
+
+      const userData = JSON.parse(storedUser)
+
+      // Generate new verification token
+      const verificationToken = btoa(
+        JSON.stringify({
+          email: verificationEmail,
+          exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+        }),
+      )
+
+      // Update user with new token
+      const updatedUser = { ...userData, verificationToken }
+      localStorage.setItem(`user_${verificationEmail}`, JSON.stringify(updatedUser))
+
+      const response = await fetch("/api/send-verification-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: verificationEmail,
+          firstName: userData.firstName,
+          verificationToken,
+        }),
+      })
+
+      if (response.ok) {
+        alert("New verification email sent! Please check your inbox.")
+      } else {
+        setError("Failed to send verification email. Please try again.")
+      }
+    } catch (error) {
+      console.error("Resend verification error:", error)
+      setError("Failed to send verification email. Please try again.")
+    }
+  }
+
+  if (showVerificationMessage) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-orange-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <Mail className="w-16 h-16 mx-auto mb-4 text-yellow-500" />
+            <CardTitle className="text-2xl font-bold">Check Your Email</CardTitle>
+            <CardDescription>We've sent a verification link to your email address</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert className="border-yellow-200 bg-yellow-50">
+              <AlertDescription className="text-yellow-800">
+                Please check your email inbox for <strong>{verificationEmail}</strong> and click the verification link
+                to activate your account.
+              </AlertDescription>
+            </Alert>
+
+            <div className="text-sm text-gray-600 space-y-2">
+              <p>• Check your spam/junk folder if you don't see the email</p>
+              <p>• The verification link expires in 24 hours</p>
+              <p>• You must verify your email before you can sign in</p>
+            </div>
+
+            <div className="space-y-2">
+              <Button
+                onClick={handleResendVerification}
+                className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
+              >
+                Resend Verification Email
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowVerificationMessage(false)
+                  setVerificationEmail("")
+                  setError("")
+                }}
+                variant="outline"
+                className="w-full"
+              >
+                Back to Sign In
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -260,6 +398,10 @@ export default function AuthPage() {
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? "Creating Account..." : "Create Account"}
                 </Button>
+
+                <div className="text-xs text-gray-600 text-center">
+                  By signing up, you agree to receive a verification email to activate your account.
+                </div>
               </form>
             </TabsContent>
           </Tabs>
