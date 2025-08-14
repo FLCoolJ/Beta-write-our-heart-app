@@ -5,33 +5,34 @@ export async function POST(request: NextRequest) {
     const { token } = await request.json()
 
     if (!token) {
-      return NextResponse.json({ error: "Token is required" }, { status: 400 })
+      return NextResponse.json({ error: "Verification token is required" }, { status: 400 })
     }
 
-    // Get email from KV using token
-    const kv = (await import("@vercel/kv")).kv
-    const email = await kv.get(`verification:${token}`)
+    try {
+      // Decode token to get email and timestamp
+      const decoded = Buffer.from(token, "base64").toString("utf-8")
+      const [email, timestamp] = decoded.split(":")
 
-    if (!email) {
-      return NextResponse.json(
-        {
-          error: "Invalid or expired verification token",
-        },
-        { status: 400 },
-      )
+      if (!email || !timestamp) {
+        return NextResponse.json({ error: "Invalid verification token" }, { status: 400 })
+      }
+
+      // Check if token is expired (24 hours)
+      const tokenAge = Date.now() - Number.parseInt(timestamp)
+      const maxAge = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+
+      if (tokenAge > maxAge) {
+        return NextResponse.json({ error: "Verification token has expired" }, { status: 400 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: "Email verified successfully",
+        email,
+      })
+    } catch (decodeError) {
+      return NextResponse.json({ error: "Invalid verification token format" }, { status: 400 })
     }
-
-    // Mark email as verified in KV
-    await kv.setex(`verified:${email}`, 86400 * 30, "true") // 30 days
-
-    // Delete the verification token
-    await kv.del(`verification:${token}`)
-
-    return NextResponse.json({
-      success: true,
-      message: "Email verified successfully",
-      email,
-    })
   } catch (error) {
     console.error("Error verifying email:", error)
     return NextResponse.json({ error: "Failed to verify email" }, { status: 500 })

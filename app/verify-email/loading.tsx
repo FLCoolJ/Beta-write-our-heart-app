@@ -1,10 +1,8 @@
-import { Loader2 } from "lucide-react"
-
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 flex items-center justify-center p-4">
       <div className="text-center">
-        <Loader2 className="w-12 h-12 animate-spin mx-auto text-yellow-500 mb-4" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
         <p className="text-gray-600">Loading verification page...</p>
       </div>
     </div>

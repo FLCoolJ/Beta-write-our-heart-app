@@ -14,41 +14,62 @@ export default function VerifyEmailPage() {
 
   useEffect(() => {
     const token = searchParams.get("token")
+    const email = searchParams.get("email")
 
-    if (!token) {
+    if (!token || !email) {
       setStatus("error")
       setMessage("Invalid verification link")
       return
     }
 
-    // Verify the token
-    verifyToken(token)
+    verifyEmail(token, email)
   }, [searchParams])
 
-  const verifyToken = async (token: string) => {
+  const verifyEmail = async (token: string, email: string) => {
     try {
-      const response = await fetch("/api/verify-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ token }),
-      })
+      // Get pending user data
+      const pendingUser = localStorage.getItem("pendingUser")
 
-      const data = await response.json()
-
-      if (response.ok) {
-        setStatus("success")
-        setMessage("Email verified successfully!")
-
-        // Redirect to auth page after 3 seconds
-        setTimeout(() => {
-          router.push("/auth?verified=true")
-        }, 3000)
-      } else {
+      if (!pendingUser) {
         setStatus("error")
-        setMessage(data.error || "Verification failed")
+        setMessage("No pending verification found")
+        return
       }
+
+      const userData = JSON.parse(pendingUser)
+
+      // Mark user as verified and store
+      const verifiedUser = {
+        ...userData,
+        emailVerified: true,
+        verifiedAt: new Date().toISOString(),
+        id: Date.now().toString(),
+        freeCards: 2, // Initial cards
+        referralCards: userData.referralCode ? 2 : 0, // Bonus if referred
+        hearts: [],
+        createdAt: new Date().toISOString(),
+      }
+
+      // Store verified user
+      localStorage.setItem(`user_${email}`, JSON.stringify(verifiedUser))
+      localStorage.setItem("currentUser", JSON.stringify(verifiedUser))
+      localStorage.setItem("user", JSON.stringify(verifiedUser))
+
+      // Clean up pending user
+      localStorage.removeItem("pendingUser")
+
+      setStatus("success")
+      setMessage("Congratulations! Welcome to Write Our Heart!")
+
+      // Redirect after 3 seconds
+      setTimeout(() => {
+        // Check if user has hearts - if not, go to add heart page
+        if (verifiedUser.hearts.length === 0) {
+          router.push("/add-heart?first=true")
+        } else {
+          router.push("/my-hearts")
+        }
+      }, 3000)
     } catch (error) {
       setStatus("error")
       setMessage("An error occurred during verification")
@@ -76,10 +97,11 @@ export default function VerifyEmailPage() {
 
           {status === "success" && (
             <div className="space-y-4">
-              <CheckCircle className="w-12 h-12 mx-auto text-green-500" />
+              <CheckCircle className="w-16 h-16 mx-auto text-green-500" />
               <div>
+                <h3 className="text-xl font-bold text-green-600 mb-2">Congratulations!</h3>
                 <p className="text-green-600 font-medium">{message}</p>
-                <p className="text-gray-600 text-sm mt-2">Redirecting you to continue your journey...</p>
+                <p className="text-gray-600 text-sm mt-2">Redirecting you to create your first personalized card...</p>
               </div>
             </div>
           )}

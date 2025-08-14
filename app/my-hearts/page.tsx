@@ -11,7 +11,6 @@ import {
   Calendar,
   Trash2,
   Share2,
-  Gift,
   Clock,
   AlertTriangle,
   Mail,
@@ -164,7 +163,7 @@ export default function MyHearts() {
 
 I need to send a card immediately to:
 Name: ${heart.name}
-Address: ${heart.address}, ${heart.city}, ${heart.state} ${heart.zipCode}
+Address: ${heart.address.address1}, ${heart.address.city}, ${heart.address.state} ${heart.address.zip5}
 Relationship: ${heart.relationship}
 
 Reason for urgent request: [Please specify your reason]
@@ -178,7 +177,8 @@ ${user.email}`
   }
 
   const handleScheduleCard = (heart: any) => {
-    const recipientAddress = `${heart.address}, ${heart.city}, ${heart.state} ${heart.zipCode}`.trim()
+    const recipientAddress =
+      `${heart.address.address1}, ${heart.address.city}, ${heart.address.state} ${heart.address.zip5}`.trim()
     const limitCheck = checkRecipientLimit(recipientAddress)
 
     if (!limitCheck.canSend) {
@@ -345,6 +345,7 @@ ${user.email}`
               </div>
             </div>
 
+            {/* Moved buttons to the right */}
             <div className="flex items-center gap-4">
               <Button
                 onClick={() => setShowPaymentModal(true)}
@@ -363,21 +364,6 @@ ${user.email}`
                 <LogOut className="w-4 h-4" />
                 Sign Out
               </Button>
-
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-2">
-                <div className="flex items-center gap-2">
-                  <Gift className="w-5 h-5 text-yellow-600" />
-                  <div className="text-sm">
-                    <div className="font-semibold text-black">{totalCards} Cards Available</div>
-                    <div className="text-gray-600">
-                      {user.freeCards} free • {user.referralCards || 0} referral
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Monthly: {getCardAllocation()} card{getCardAllocation() > 1 ? "s" : ""} • Expire in 60 days
-                    </div>
-                  </div>
-                </div>
-              </div>
 
               <Button
                 onClick={handleReferFriend}
@@ -436,6 +422,7 @@ ${user.email}`
             )}
           </div>
 
+          {/* Updated stats grid - moved card info under Monthly Allocation and Card Expiration */}
           <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div className="bg-blue-50 rounded-lg p-3 text-center">
               <div className="font-semibold text-blue-800">Cards This Month</div>
@@ -446,10 +433,18 @@ ${user.email}`
             <div className="bg-green-50 rounded-lg p-3 text-center">
               <div className="font-semibold text-green-800">Monthly Allocation</div>
               <div className="text-green-600">{getCardAllocation()} cards/month</div>
+              {/* Moved card availability info here */}
+              <div className="text-xs text-green-500 mt-1">
+                {totalCards} Cards Available
+                <br />
+                {user.freeCards} free • {user.referralCards || 0} referral
+              </div>
             </div>
             <div className="bg-purple-50 rounded-lg p-3 text-center">
               <div className="font-semibold text-purple-800">Card Expiration</div>
               <div className="text-purple-600">60 days from issue</div>
+              {/* Added referral card expiration info */}
+              <div className="text-xs text-purple-500 mt-1">Referral cards expire in 60 days</div>
             </div>
             <div className="bg-yellow-50 rounded-lg p-3 text-center">
               <div className="font-semibold text-yellow-800">Plan</div>
@@ -541,7 +536,8 @@ ${user.email}`
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {hearts.map((heart) => {
-                const recipientAddress = `${heart.address}, ${heart.city}, ${heart.state} ${heart.zipCode}`.trim()
+                const recipientAddress =
+                  `${heart.address?.address1 || heart.address}, ${heart.address?.city || heart.city}, ${heart.address?.state || heart.state} ${heart.address?.zip5 || heart.zipCode}`.trim()
                 const limitCheck = checkRecipientLimit(recipientAddress)
 
                 return (
@@ -562,14 +558,9 @@ ${user.email}`
                       <div className="space-y-1 text-sm">
                         {heart.email && <p className="text-gray-600">{heart.email}</p>}
                         {heart.phone && <p className="text-gray-600">{heart.phone}</p>}
-                        {heart.address && (
+                        {(heart.address || heart.address?.address1) && (
                           <div>
-                            <p className="text-gray-600">
-                              {heart.address}
-                              {heart.city && `, ${heart.city}`}
-                              {heart.state && `, ${heart.state}`}
-                              {heart.zipCode && ` ${heart.zipCode}`}
-                            </p>
+                            <p className="text-gray-600">{recipientAddress}</p>
                             <div className="flex items-center gap-1 mt-1">
                               <div
                                 className={`w-2 h-2 rounded-full ${
@@ -596,7 +587,7 @@ ${user.email}`
                         <div className="flex flex-wrap gap-1">
                           {heart.occasions?.slice(0, 3).map((occasion: string) => (
                             <Badge key={occasion} variant="secondary" className="text-xs">
-                              {occasion === "other" ? heart.otherOccasion : occasion}
+                              {occasion === "Other" ? heart.customOccasion : occasion}
                             </Badge>
                           ))}
                           {heart.occasions?.length > 3 && (
@@ -617,7 +608,7 @@ ${user.email}`
                                 <div key={occasion} className="flex items-center gap-2 text-xs text-gray-600">
                                   <Calendar className="w-3 h-3" />
                                   <span>
-                                    {occasion === "other" ? heart.otherOccasion : occasion} -{" "}
+                                    {occasion === "Other" ? heart.customOccasion : occasion} -{" "}
                                     {format(new Date(date), "MMM dd")}
                                   </span>
                                 </div>

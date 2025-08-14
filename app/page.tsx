@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Heart, Mail, Palette, Clock, CheckCircle, Star, Users, Gift, ArrowRight, Sparkles } from "lucide-react"
+import { Heart, Mail, Palette, CheckCircle, Star, Users, Gift, ArrowRight } from "lucide-react"
 
 export default function HomePage() {
   const router = useRouter()
@@ -27,12 +27,12 @@ export default function HomePage() {
     }
   }, [searchParams])
 
-  const handleGetStarted = () => {
-    router.push("/auth")
+  const handleLogin = () => {
+    router.push("/auth?mode=login")
   }
 
-  const handleViewDemo = () => {
-    router.push("/demo")
+  const handleSignIn = () => {
+    router.push("/auth?mode=signin")
   }
 
   return (
@@ -71,42 +71,43 @@ export default function HomePage() {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <Button
-                onClick={handleGetStarted}
+                onClick={handleLogin}
                 size="lg"
                 className="bg-yellow-500 hover:bg-yellow-600 text-black text-lg px-8 py-4"
               >
                 <Heart className="w-5 h-5 mr-2" />
-                Start Your Beta Journey
+                Log In
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
-              <Button onClick={handleViewDemo} variant="outline" size="lg" className="text-lg px-8 py-4 bg-transparent">
-                <Sparkles className="w-5 h-5 mr-2" />
-                See How It Works
+              <Button onClick={handleSignIn} variant="outline" size="lg" className="text-lg px-8 py-4 bg-transparent">
+                Sign In
               </Button>
             </div>
 
-            {/* Beta Pricing Alert */}
-            <div className="bg-white/80 backdrop-blur-sm border border-yellow-200 rounded-lg p-6 max-w-2xl mx-auto">
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <Badge className="bg-yellow-500 text-black">Limited Time Beta</Badge>
-                <Badge variant="outline" className="text-green-600 border-green-600">
-                  Lock in Forever
-                </Badge>
-              </div>
-              <p className="text-gray-700 mb-4">
-                <strong>Beta users get lifetime pricing!</strong> Lock in our special beta rates and never pay more,
-                even as we add premium features.
-              </p>
-              <div className="grid sm:grid-cols-2 gap-4 text-sm">
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="font-semibold text-blue-800">Whisper Plan</div>
-                  <div className="text-blue-600">$8.99/month • 2 cards/month</div>
-                  <div className="text-xs text-blue-500 mt-1">Perfect for close family</div>
+            {/* Beta Pricing Alert - Centered */}
+            <div className="flex justify-center mb-12">
+              <div className="bg-white/80 backdrop-blur-sm border border-yellow-200 rounded-lg p-6 max-w-md">
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <Badge className="bg-yellow-500 text-black">Limited Time Beta</Badge>
+                  <Badge variant="outline" className="text-green-600 border-green-600">
+                    Lock in Forever
+                  </Badge>
                 </div>
-                <div className="bg-purple-50 rounded-lg p-4">
-                  <div className="font-semibold text-purple-800">Legacy Plan</div>
-                  <div className="text-purple-600">$25.99/month • 7 cards/month</div>
-                  <div className="text-xs text-purple-500 mt-1">For the ultimate connector</div>
+                <p className="text-gray-700 mb-4">
+                  <strong>Beta users get lifetime pricing!</strong> Lock in our special beta rates and never pay more,
+                  even as we add premium features.
+                </p>
+                <div className="grid grid-cols-1 gap-4 text-sm">
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <div className="font-semibold text-blue-800">Whisper Plan</div>
+                    <div className="text-blue-600">$8.99/month • 2 cards/month</div>
+                    <div className="text-xs text-blue-500 mt-1">Perfect for close family</div>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg p-4">
+                    <div className="font-semibold text-purple-800">Legacy Plan</div>
+                    <div className="text-purple-600">$25.99/month • 7 cards/month</div>
+                    <div className="text-xs text-purple-500 mt-1">For the ultimate connector</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -300,7 +301,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* CTA Section */}
+      {/* CTA Section - Removed "Watch Demo First" button */}
       <div className="bg-gradient-to-r from-yellow-400 to-orange-500 py-16">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold text-white mb-4">Ready to Start Connecting Hearts?</h2>
@@ -316,23 +317,14 @@ export default function HomePage() {
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex justify-center">
             <Button
-              onClick={handleGetStarted}
+              onClick={handleLogin}
               size="lg"
               className="bg-white text-gray-900 hover:bg-gray-100 text-lg px-8 py-4"
             >
               <Heart className="w-5 h-5 mr-2" />
               Start Your Beta Journey
-            </Button>
-            <Button
-              onClick={handleViewDemo}
-              variant="outline"
-              size="lg"
-              className="border-white text-white hover:bg-white/10 text-lg px-8 py-4 bg-transparent"
-            >
-              <Clock className="w-5 h-5 mr-2" />
-              Watch Demo First
             </Button>
           </div>
 
