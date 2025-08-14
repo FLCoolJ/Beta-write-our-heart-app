@@ -1,63 +1,50 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { kv } from "@vercel/kv"
 import { sendEmail } from "@/lib/email-system"
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, firstName, verificationToken } = await request.json()
+    const { email } = await request.json()
 
-    if (!email || !firstName || !verificationToken) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    if (!email) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 })
     }
 
-    const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://beta.writeourheart.com"}/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}`
+    // Generate verification token
+    const verificationToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
 
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="text-align: center; margin-bottom: 30px;">
-          <img src="${process.env.NEXT_PUBLIC_APP_URL || "https://beta.writeourheart.com"}/logo.png" alt="Write Our Heart" style="height: 60px;">
-        </div>
-        
-        <h1 style="color: #f59e0b; text-align: center;">Welcome to Write Our Heart, ${firstName}!</h1>
-        
-        <p style="font-size: 16px; line-height: 1.6; color: #333;">
-          Thank you for joining our community of heartfelt card senders. To get started and secure your beta pricing, please verify your email address.
-        </p>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${verificationUrl}" 
-             style="background-color: #f59e0b; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
-            Verify My Email Address
-          </a>
-        </div>
-        
-        <p style="font-size: 14px; color: #666; margin-top: 30px;">
-          If the button doesn't work, copy and paste this link into your browser:
-        </p>
-        <p style="font-size: 14px; color: #666; word-break: break-all;">
-          ${verificationUrl}
-        </p>
-        
-        <div style="border-top: 1px solid #eee; margin-top: 30px; padding-top: 20px; font-size: 12px; color: #999;">
-          <p>This verification link will expire in 24 hours.</p>
-          <p>If you didn't create an account with Write Our Heart, please ignore this email.</p>
-        </div>
-      </div>
-    `
+    // Store verification token in KV with 24 hour expiration
+    await kv.setex(`verification:${verificationToken}`, 86400, email)
 
-    const result = await sendEmail({
+    // Send verification email
+    const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/verify-email?token=${verificationToken}`
+
+    await sendEmail({
       to: email,
-      subject: "Verify your email - Write Our Heart",
-      html: emailHtml,
-      from: process.env.FROM_EMAIL || "noreply@writeourheart.com",
+      subject: "Verify Your Email - Write Our Heart",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">Welcome to Write Our Heart!</h2>
+          <p>Please verify your email address by clicking the button below:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${verificationUrl}" 
+               style="background-color: #007bff; color: white; padding: 12px 24px; 
+                      text-decoration: none; border-radius: 5px; display: inline-block;">
+              Verify Email Address
+            </a>
+          </div>
+          <p>Or copy and paste this link into your browser:</p>
+          <p style="word-break: break-all; color: #666;">${verificationUrl}</p>
+          <p style="color: #666; font-size: 14px;">
+            This link will expire in 24 hours. If you didn't create an account, please ignore this email.
+          </p>
+        </div>
+      `,
     })
 
-    if (result.success) {
-      return NextResponse.json({ success: true, message: "Verification email sent successfully" })
-    } else {
-      return NextResponse.json({ error: "Failed to send verification email" }, { status: 500 })
-    }
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Send verification email error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error("Error sending verification email:", error)
+    return NextResponse.json({ error: "Failed to send verification email" }, { status: 500 })
   }
 }
