@@ -2,39 +2,38 @@ import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
-    const { token } = await request.json()
+    const { token, email } = await request.json()
 
-    if (!token) {
-      return NextResponse.json({ error: "Verification token is required" }, { status: 400 })
+    if (!token || !email) {
+      return NextResponse.json({ error: "Token and email are required" }, { status: 400 })
     }
 
+    // In a real app, you would:
+    // 1. Validate the JWT token
+    // 2. Check if it's expired
+    // 3. Update the user in your database
+    // 4. Return success/failure
+
+    // For demo purposes, we'll simulate the verification
+    console.log("Email verification request:", { token, email })
+
+    // Simple token validation (in real app, use proper JWT validation)
     try {
-      // Decode token to get email and timestamp
-      const decoded = Buffer.from(token, "base64").toString("utf-8")
-      const [email, timestamp] = decoded.split(":")
-
-      if (!email || !timestamp) {
-        return NextResponse.json({ error: "Invalid verification token" }, { status: 400 })
+      // This is a simplified validation - in real app use proper JWT
+      const decoded = atob(token.replace(/[^a-zA-Z0-9]/g, ""))
+      if (!decoded.includes(email)) {
+        return NextResponse.json({ error: "Invalid token" }, { status: 400 })
       }
-
-      // Check if token is expired (24 hours)
-      const tokenAge = Date.now() - Number.parseInt(timestamp)
-      const maxAge = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
-
-      if (tokenAge > maxAge) {
-        return NextResponse.json({ error: "Verification token has expired" }, { status: 400 })
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: "Email verified successfully",
-        email,
-      })
-    } catch (decodeError) {
-      return NextResponse.json({ error: "Invalid verification token format" }, { status: 400 })
+    } catch {
+      return NextResponse.json({ error: "Invalid token format" }, { status: 400 })
     }
+
+    return NextResponse.json({
+      success: true,
+      message: "Email verified successfully",
+    })
   } catch (error) {
-    console.error("Error verifying email:", error)
+    console.error("Email verification error:", error)
     return NextResponse.json({ error: "Failed to verify email" }, { status: 500 })
   }
 }

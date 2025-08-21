@@ -5,478 +5,466 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
-import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/hooks/use-toast"
-import { Heart, Gift, Eye, EyeOff } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Loader2, Heart, CheckCircle, AlertCircle } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function AuthPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
+
   const [isLoading, setIsLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showResetPassword, setShowResetPassword] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
   const [referralCode, setReferralCode] = useState<string | null>(null)
 
-  // Determine mode from URL params
-  const mode = searchParams.get("mode") || "login" // login or signin
+  // Login form
+  const [loginEmail, setLoginEmail] = useState("")
+  const [loginPassword, setLoginPassword] = useState("")
 
-  // Login/Signin form state
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [firstName, setFirstName] = useState("")
-  const [lastName, setLastName] = useState("")
+  // Register form
+  const [registerData, setRegisterData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    plan: "whisper" as "whisper" | "legacy",
+  })
 
-  // Reset password state
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmNewPassword, setConfirmNewPassword] = useState("")
+  // Reset password
+  const [resetEmail, setResetEmail] = useState("")
+  const [showResetForm, setShowResetForm] = useState(false)
 
   useEffect(() => {
-    // Check if email was just verified
-    const verified = searchParams.get("verified")
-    if (verified === "true") {
-      toast({
-        title: "Email Verified! ✅",
-        description: "Your email has been verified. You can now continue with your signup.",
-      })
-    }
-
-    // Check for referral code
-    const ref = searchParams.get("ref") || localStorage.getItem("referralCode")
+    const ref = searchParams.get("ref")
     if (ref) {
       setReferralCode(ref)
+      localStorage.setItem("referralCode", ref)
     }
-  }, [searchParams, toast])
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError("")
 
     try {
-      // For new users - send verification email first
-      const response = await fetch("/api/send-verification-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          firstName,
-          lastName,
-          referralCode,
-        }),
-      })
+      // Simulate login - in real app, this would call your auth API
+      const users = JSON.parse(localStorage.getItem("registeredUsers") || "[]")
+      const user = users.find((u: any) => u.email === loginEmail.toLowerCase())
 
-      const data = await response.json()
-
-      if (response.ok) {
-        toast({
-          title: "Verification Email Sent! 📧",
-          description: "Please check your email and click the verification link to continue.",
-        })
-        // Store user data temporarily
-        localStorage.setItem(
-          "pendingUser",
-          JSON.stringify({
-            email,
-            password,
-            firstName,
-            lastName,
-            referralCode,
-          }),
-        )
-      } else {
-        toast({
-          title: "Error",
-          description: data.error || "Failed to send verification email",
-          variant: "destructive",
-        })
+      if (!user) {
+        setError("No account found with this email address.")
+        setIsLoading(false)
+        return
       }
-    } catch (error) {
+
+      // Simple password check (in real app, use proper hashing)
+      if (user.password !== loginPassword) {
+        setError("Invalid password.")
+        setIsLoading(false)
+        return
+      }
+
+      // Check if email is verified
+      if (!user.emailVerified) {
+        setError("Please verify your email address before logging in. Check your inbox for the verification link.")
+        setIsLoading(false)
+        return
+      }
+
+      // Login successful
+      localStorage.setItem("currentUser", JSON.stringify(user))
+      localStorage.setItem("user", JSON.stringify(user))
+
       toast({
-        title: "Error",
-        description: "An error occurred. Please try again.",
-        variant: "destructive",
+        title: "Welcome back!",
+        description: `Good to see you again, ${user.firstName}!`,
       })
+
+      // Redirect to dashboard
+      router.push("/my-hearts")
+    } catch (error) {
+      console.error("Login error:", error)
+      setError("An error occurred during login. Please try again.")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError("")
+
+    // Validation
+    if (registerData.password !== registerData.confirmPassword) {
+      setError("Passwords do not match.")
+      setIsLoading(false)
+      return
+    }
+
+    if (registerData.password.length < 6) {
+      setError("Password must be at least 6 characters long.")
+      setIsLoading(false)
+      return
+    }
 
     try {
-      // Check if user exists and password is correct
-      const storedUser = localStorage.getItem(`user_${email}`)
+      // Check if user already exists
+      const existingUsers = JSON.parse(localStorage.getItem("registeredUsers") || "[]")
+      const userExists = existingUsers.find((u: any) => u.email === registerData.email.toLowerCase())
 
-      if (!storedUser) {
-        toast({
-          title: "Account Not Found",
-          description: "No account found with this email. Please sign up first.",
-          variant: "destructive",
-        })
+      if (userExists) {
+        setError("An account with this email already exists.")
         setIsLoading(false)
         return
       }
 
-      const userData = JSON.parse(storedUser)
-
-      if (userData.password !== password) {
-        toast({
-          title: "Invalid Password",
-          description: "The password you entered is incorrect.",
-          variant: "destructive",
-        })
-        setIsLoading(false)
-        return
+      // Create new user
+      const newUser = {
+        id: Date.now().toString(),
+        firstName: registerData.firstName,
+        lastName: registerData.lastName,
+        email: registerData.email.toLowerCase(),
+        password: registerData.password, // In real app, hash this
+        userType: registerData.plan,
+        freeCards: registerData.plan === "legacy" ? 7 : 2,
+        usedCards: 0,
+        hearts: [],
+        createdAt: new Date().toISOString(),
+        emailVerified: false,
+        betaPricing: true,
+        referralCode: referralCode || null,
       }
 
-      if (!userData.emailVerified) {
-        toast({
-          title: "Email Not Verified",
-          description: "Please verify your email before signing in.",
-          variant: "destructive",
-        })
-        setIsLoading(false)
-        return
-      }
+      // Save user
+      const updatedUsers = [...existingUsers, newUser]
+      localStorage.setItem("registeredUsers", JSON.stringify(updatedUsers))
 
-      // Set current user and redirect to dashboard
-      localStorage.setItem("currentUser", JSON.stringify(userData))
-      localStorage.setItem("user", JSON.stringify(userData))
+      // Send verification email (simulate)
+      await sendVerificationEmail(newUser.email, newUser.firstName)
 
-      toast({
-        title: "Welcome Back! 🎉",
-        description: "Successfully signed in to your account.",
+      setSuccess(
+        `Account created successfully! We've sent a verification email to ${registerData.email}. Please check your inbox and click the verification link to complete your registration.`,
+      )
+
+      // Clear form
+      setRegisterData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+        plan: "whisper",
       })
-
-      // Redirect to dashboard after brief delay
-      setTimeout(() => {
-        router.push("/my-hearts")
-      }, 1500)
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "An error occurred during sign in.",
-        variant: "destructive",
-      })
+      console.error("Registration error:", error)
+      setError("An error occurred during registration. Please try again.")
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const sendVerificationEmail = async (email: string, firstName: string) => {
+    try {
+      const response = await fetch("/api/send-verification-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, firstName }),
+      })
+
+      if (!response.ok) {
+        console.error("Failed to send verification email")
+      }
+    } catch (error) {
+      console.error("Error sending verification email:", error)
     }
   }
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (newPassword !== confirmNewPassword) {
-      toast({
-        title: "Passwords Don't Match",
-        description: "Please make sure both passwords match.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (newPassword.length < 6) {
-      toast({
-        title: "Password Too Short",
-        description: "Password must be at least 6 characters long.",
-        variant: "destructive",
-      })
-      return
-    }
-
     setIsLoading(true)
+    setError("")
 
     try {
-      // Update password in localStorage
-      const storedUser = localStorage.getItem(`user_${email}`)
-      if (storedUser) {
-        const userData = JSON.parse(storedUser)
-        userData.password = newPassword
-        localStorage.setItem(`user_${email}`, JSON.stringify(userData))
-        localStorage.setItem("currentUser", JSON.stringify(userData))
+      // Simulate password reset email
+      const users = JSON.parse(localStorage.getItem("registeredUsers") || "[]")
+      const user = users.find((u: any) => u.email === resetEmail.toLowerCase())
 
-        toast({
-          title: "Password Reset Successful! ✅",
-          description: "Your password has been updated. Redirecting to dashboard...",
-        })
-
-        setTimeout(() => {
-          router.push("/my-hearts")
-        }, 2000)
-      } else {
-        toast({
-          title: "Account Not Found",
-          description: "No account found with this email.",
-          variant: "destructive",
-        })
+      if (!user) {
+        setError("No account found with this email address.")
+        setIsLoading(false)
+        return
       }
+
+      // In a real app, you'd send a password reset email
+      setSuccess(`Password reset instructions have been sent to ${resetEmail}. Please check your inbox.`)
+      setShowResetForm(false)
+      setResetEmail("")
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to reset password. Please try again.",
-        variant: "destructive",
-      })
+      console.error("Password reset error:", error)
+      setError("An error occurred. Please try again.")
     } finally {
       setIsLoading(false)
     }
   }
 
-  if (showResetPassword) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg p-3">
-                <img src="/logo.png" alt="Write Our Heart" className="w-full h-full object-contain" />
-              </div>
-            </div>
-            <CardTitle className="text-2xl">Reset Password</CardTitle>
-            <p className="text-gray-600">Enter your new password</p>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleResetPassword} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="newPassword">New Password</Label>
-                <div className="relative">
-                  <Input
-                    id="newPassword"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter new password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                    disabled={isLoading}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
-                <Input
-                  id="confirmNewPassword"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Confirm new password"
-                  value={confirmNewPassword}
-                  onChange={(e) => setConfirmNewPassword(e.target.value)}
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
-                disabled={isLoading}
-              >
-                {isLoading ? "Resetting..." : "Reset Password"}
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full bg-transparent"
-                onClick={() => setShowResetPassword(false)}
-              >
-                Back to Sign In
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-orange-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg p-3">
-              <img src="/logo.png" alt="Write Our Heart" className="w-full h-full object-contain" />
-            </div>
+          <div className="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Heart className="w-8 h-8 text-white" />
           </div>
-          <CardTitle className="text-2xl">{mode === "login" ? "Join Write Our Heart" : "Welcome Back"}</CardTitle>
-          <p className="text-gray-600">
-            {mode === "login" ? "Start your journey to meaningful connections" : "Sign in to your account"}
-          </p>
+          <CardTitle className="text-2xl">Write Our Heart</CardTitle>
+          <p className="text-gray-600">Welcome to your personalized card service</p>
+        </CardHeader>
+
+        <CardContent>
+          {error && (
+            <Alert className="mb-4 border-red-200 bg-red-50">
+              <AlertCircle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-800">{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {success && (
+            <Alert className="mb-4 border-green-200 bg-green-50">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800">{success}</AlertDescription>
+            </Alert>
+          )}
 
           {referralCode && (
-            <div className="mt-4">
-              <Badge className="bg-green-100 text-green-800 border-green-200">
-                <Gift className="w-3 h-3 mr-1" />
-                Referral Bonus Active!
-              </Badge>
-              <p className="text-sm text-green-600 mt-1">You and your friend will both get 2 free cards!</p>
-            </div>
+            <Alert className="mb-4 border-blue-200 bg-blue-50">
+              <CheckCircle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800">
+                🎉 You're signing up with a referral! You'll get 2 bonus cards when you complete registration.
+              </AlertDescription>
+            </Alert>
           )}
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={mode === "login" ? handleLogin : handleSignIn} className="space-y-4">
-            {mode === "login" && (
-              <div className="grid grid-cols-2 gap-4">
+
+          <Tabs defaultValue="login" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Log In</TabsTrigger>
+              <TabsTrigger value="register">Sign Up</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="login" className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
+                  <Label htmlFor="loginEmail">Email</Label>
                   <Input
-                    id="firstName"
-                    placeholder="First name"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
+                    id="loginEmail"
+                    type="email"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
                     required
-                    disabled={isLoading}
                   />
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
+                  <Label htmlFor="loginPassword">Password</Label>
                   <Input
-                    id="lastName"
-                    placeholder="Last name"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
+                    id="loginPassword"
+                    type="password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
                     required
-                    disabled={isLoading}
                   />
                 </div>
-              </div>
-            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={isLoading}
-                />
                 <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-
-            {mode === "login" && (
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Confirm your password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
+                  type="submit"
+                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
                   disabled={isLoading}
-                />
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Logging in...
+                    </>
+                  ) : (
+                    "Log In"
+                  )}
+                </Button>
+              </form>
+
+              {/* Reset Password Section */}
+              <div className="bg-white border border-gray-200 rounded-lg p-4 mt-4">
+                {!showResetForm ? (
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600 mb-2">Forgot your password?</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowResetForm(true)}
+                      className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                    >
+                      Reset Password
+                    </Button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleResetPassword} className="space-y-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="resetEmail" className="text-sm">
+                        Reset Password
+                      </Label>
+                      <Input
+                        id="resetEmail"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowResetForm(false)
+                          setResetEmail("")
+                          setError("")
+                        }}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        size="sm"
+                        disabled={isLoading}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        {isLoading ? "Sending..." : "Send Reset Link"}
+                      </Button>
+                    </div>
+                  </form>
+                )}
               </div>
-            )}
+            </TabsContent>
 
-            <Button type="submit" className="w-full bg-yellow-500 hover:bg-yellow-600 text-black" disabled={isLoading}>
-              <Heart className="w-4 h-4 mr-2" />
-              {isLoading ? "Processing..." : mode === "login" ? "Send Verification Email" : "Sign In"}
-            </Button>
-          </form>
-
-          {mode === "signin" && (
-            <div className="mt-4">
-              <Card className="bg-white border border-gray-200">
-                <CardContent className="p-4 text-center">
-                  <p className="text-sm text-gray-600 mb-3">Forgot your password?</p>
-                  <Button
-                    onClick={() => setShowResetPassword(true)}
-                    variant="outline"
-                    className="w-full bg-transparent"
-                  >
-                    Reset Password
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          <Separator className="my-6" />
-
-          <div className="text-center space-y-4">
-            {mode === "login" && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <Badge className="bg-yellow-500 text-black">Beta Special</Badge>
+            <TabsContent value="register" className="space-y-4">
+              <form onSubmit={handleRegister} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input
+                      id="firstName"
+                      value={registerData.firstName}
+                      onChange={(e) => setRegisterData((prev) => ({ ...prev, firstName: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input
+                      id="lastName"
+                      value={registerData.lastName}
+                      onChange={(e) => setRegisterData((prev) => ({ ...prev, lastName: e.target.value }))}
+                      required
+                    />
+                  </div>
                 </div>
-                <p className="text-sm text-gray-700">
-                  <strong>Lock in lifetime pricing!</strong> Beta users keep these rates forever, even as we add premium
-                  features.
-                </p>
-              </div>
-            )}
 
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="bg-blue-50 rounded-lg p-3">
-                <div className="font-semibold text-blue-800">Whisper Plan</div>
-                <div className="text-blue-600">$8.99/month</div>
-                <div className="text-blue-500">2 cards/month</div>
-              </div>
-              <div className="bg-purple-50 rounded-lg p-3">
-                <div className="font-semibold text-purple-800">Legacy Plan</div>
-                <div className="text-purple-600">$25.99/month</div>
-                <div className="text-purple-500">7 cards/month</div>
-              </div>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="registerEmail">Email</Label>
+                  <Input
+                    id="registerEmail"
+                    type="email"
+                    value={registerData.email}
+                    onChange={(e) => setRegisterData((prev) => ({ ...prev, email: e.target.value }))}
+                    required
+                  />
+                </div>
 
-            <p className="text-xs text-gray-500">By continuing, you agree to our Terms of Service and Privacy Policy</p>
-          </div>
+                <div className="space-y-2">
+                  <Label htmlFor="registerPassword">Password</Label>
+                  <Input
+                    id="registerPassword"
+                    type="password"
+                    value={registerData.password}
+                    onChange={(e) => setRegisterData((prev) => ({ ...prev, password: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={registerData.confirmPassword}
+                    onChange={(e) => setRegisterData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Choose Your Plan</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div
+                      className={`p-3 border-2 rounded-lg cursor-pointer transition-colors ${
+                        registerData.plan === "whisper"
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                      onClick={() => setRegisterData((prev) => ({ ...prev, plan: "whisper" }))}
+                    >
+                      <div className="text-center">
+                        <div className="font-semibold text-blue-600">$8.99/mo</div>
+                        <div className="text-sm text-gray-600">Whisper</div>
+                        <div className="text-xs text-gray-500">2 cards/month</div>
+                      </div>
+                    </div>
+                    <div
+                      className={`p-3 border-2 rounded-lg cursor-pointer transition-colors ${
+                        registerData.plan === "legacy"
+                          ? "border-purple-500 bg-purple-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                      onClick={() => setRegisterData((prev) => ({ ...prev, plan: "legacy" }))}
+                    >
+                      <div className="text-center">
+                        <div className="font-semibold text-purple-600">$25.99/mo</div>
+                        <div className="text-sm text-gray-600">Legacy</div>
+                        <div className="text-xs text-gray-500">7 cards/month</div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-600 text-center">
+                    🔒 Beta pricing locked forever! No payment required during beta.
+                  </p>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating Account...
+                    </>
+                  ) : (
+                    "Create Account"
+                  )}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>
