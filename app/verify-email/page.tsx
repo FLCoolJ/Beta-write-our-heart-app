@@ -1,205 +1,242 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CheckCircle, AlertCircle, Heart, Loader2 } from "lucide-react"
+import { Heart, Mail, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react"
+import Link from "next/link"
+import { toast } from "@/hooks/use-toast"
 
 export default function VerifyEmailPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const [status, setStatus] = useState<"loading" | "success" | "error" | "expired">("loading")
-  const [message, setMessage] = useState("")
-  const [countdown, setCountdown] = useState(3)
+  const [verificationCode, setVerificationCode] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
   const [user, setUser] = useState<any>(null)
+  const [isResending, setIsResending] = useState(false)
 
   useEffect(() => {
-    const token = searchParams.get("token")
-    const email = searchParams.get("email")
-
-    if (!token || !email) {
-      setStatus("error")
-      setMessage("Invalid verification link. Please check your email for the correct link.")
+    // Check if user data exists
+    const userData = localStorage.getItem("userData")
+    if (!userData) {
+      router.push("/auth")
       return
     }
 
-    verifyEmail(token, email)
-  }, [searchParams])
+    const parsedUser = JSON.parse(userData)
+    setUser(parsedUser)
 
-  useEffect(() => {
-    if (status === "success" && countdown > 0) {
-      const timer = setTimeout(() => {
-        setCountdown(countdown - 1)
-      }, 1000)
-      return () => clearTimeout(timer)
-    } else if (status === "success" && countdown === 0) {
-      // Redirect based on whether user has hearts
-      if (user && user.hearts && user.hearts.length === 0) {
-        router.push("/add-heart?first=true")
-      } else {
-        router.push("/my-hearts")
-      }
+    // If already verified, redirect to dashboard
+    if (parsedUser.isVerified) {
+      router.push("/my-hearts")
     }
-  }, [status, countdown, router, user])
+  }, [router])
 
-  const verifyEmail = async (token: string, email: string) => {
+  const handleVerification = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!verificationCode.trim()) {
+      setError("Please enter the verification code")
+      return
+    }
+
+    setIsLoading(true)
+    setError("")
+    setSuccess("")
+
     try {
-      // Get registered users
-      const registeredUsers = JSON.parse(localStorage.getItem("registeredUsers") || "[]")
-      const userIndex = registeredUsers.findIndex((u: any) => u.email === email.toLowerCase())
+      // Simulate verification process
+      await new Promise((resolve) => setTimeout(resolve, 2000))
 
-      if (userIndex === -1) {
-        setStatus("error")
-        setMessage("User not found. Please register again.")
-        return
+      // For demo purposes, accept any 6-digit code
+      if (verificationCode.length === 6) {
+        // Update user verification status
+        const updatedUser = { ...user, isVerified: true }
+        localStorage.setItem("userData", JSON.stringify(updatedUser))
+
+        // Set authentication state
+        localStorage.setItem("isAuthenticated", "true")
+        localStorage.setItem("authToken", `token_${Date.now()}`)
+        localStorage.setItem(
+          "userSession",
+          JSON.stringify({
+            userId: user.email,
+            loginTime: new Date().toISOString(),
+          }),
+        )
+
+        setSuccess("Email verified successfully! Redirecting to your dashboard...")
+
+        toast({
+          title: "Email Verified!",
+          description: "Welcome to Write Our Heart! Let's start adding your hearts.",
+        })
+
+        setTimeout(() => {
+          router.push("/my-hearts")
+        }, 2000)
+      } else {
+        setError("Invalid verification code. Please check your email and try again.")
       }
-
-      const user = registeredUsers[userIndex]
-
-      // Simple token validation (in real app, use proper JWT validation)
-      const expectedToken = btoa(email + user.createdAt).replace(/[^a-zA-Z0-9]/g, "")
-
-      if (token !== expectedToken) {
-        setStatus("expired")
-        setMessage("This verification link has expired or is invalid. Please request a new one.")
-        return
-      }
-
-      // Mark email as verified
-      registeredUsers[userIndex] = {
-        ...user,
-        emailVerified: true,
-        emailVerifiedAt: new Date().toISOString(),
-      }
-
-      // Save updated users
-      localStorage.setItem("registeredUsers", JSON.stringify(registeredUsers))
-
-      // Set current user
-      const verifiedUser = registeredUsers[userIndex]
-      localStorage.setItem("currentUser", JSON.stringify(verifiedUser))
-      localStorage.setItem("user", JSON.stringify(verifiedUser))
-
-      setUser(verifiedUser)
-      setStatus("success")
-      setMessage(
-        `Congratulations, ${verifiedUser.firstName}! Welcome back to Write Our Heart. Your email has been verified successfully.`,
-      )
     } catch (error) {
-      console.error("Email verification error:", error)
-      setStatus("error")
-      setMessage("An error occurred during verification. Please try again.")
+      console.error("Verification error:", error)
+      setError("Something went wrong. Please try again.")
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const handleResendVerification = async () => {
-    const email = searchParams.get("email")
-    if (!email) return
+  const handleResendCode = async () => {
+    setIsResending(true)
+    setError("")
 
     try {
-      const registeredUsers = JSON.parse(localStorage.getItem("registeredUsers") || "[]")
-      const user = registeredUsers.find((u: any) => u.email === email.toLowerCase())
+      // Simulate resending verification email
+      await new Promise((resolve) => setTimeout(resolve, 1500))
 
-      if (user) {
-        // In real app, call API to resend verification email
-        const response = await fetch("/api/send-verification-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email, firstName: user.firstName }),
-        })
-
-        if (response.ok) {
-          setMessage("A new verification email has been sent. Please check your inbox.")
-        }
-      }
+      toast({
+        title: "Verification email sent!",
+        description: "Please check your email for the new verification code.",
+      })
     } catch (error) {
-      console.error("Error resending verification:", error)
+      setError("Failed to resend verification email. Please try again.")
+    } finally {
+      setIsResending(false)
     }
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Heart className="w-8 h-8 text-white animate-pulse" />
+          </div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-orange-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            {status === "loading" ? (
-              <Loader2 className="w-8 h-8 text-white animate-spin" />
-            ) : status === "success" ? (
-              <CheckCircle className="w-8 h-8 text-white" />
-            ) : (
-              <Heart className="w-8 h-8 text-white" />
-            )}
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50">
+      {/* Header */}
+      <div className="bg-white/80 backdrop-blur-sm border-b border-yellow-200">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <Link href="/auth" className="flex items-center gap-2 text-gray-600 hover:text-yellow-600">
+              <ArrowLeft className="w-4 h-4" />
+              Back to Sign In
+            </Link>
+            <div className="flex items-center gap-2">
+              <img src="/new-logo-symbol.png" alt="Write Our Heart" className="h-8 w-8" />
+              <span className="font-bold text-yellow-600">Write Our Heart</span>
+            </div>
           </div>
-          <CardTitle className="text-2xl">
-            {status === "loading" && "Verifying Email..."}
-            {status === "success" && "Email Verified! 🎉"}
-            {status === "error" && "Verification Failed"}
-            {status === "expired" && "Link Expired"}
-          </CardTitle>
-        </CardHeader>
+        </div>
+      </div>
 
-        <CardContent className="space-y-4">
-          {status === "loading" && (
-            <div className="text-center">
-              <p className="text-gray-600">Please wait while we verify your email address...</p>
+      <div className="max-w-md mx-auto px-4 py-12">
+        <Card className="bg-white/80 backdrop-blur-sm border border-yellow-200">
+          <CardHeader className="text-center">
+            <div className="w-16 h-16 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Mail className="w-8 h-8 text-white" />
             </div>
-          )}
-
-          {status === "success" && (
-            <div className="space-y-4">
-              <Alert className="border-green-200 bg-green-50">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800">{message}</AlertDescription>
-              </Alert>
-
-              <div className="text-center space-y-2">
-                <p className="text-sm text-gray-600">
-                  Redirecting you to{" "}
-                  {user && user.hearts && user.hearts.length === 0 ? "create your first card" : "your dashboard"} in{" "}
-                  {countdown} seconds...
-                </p>
-                <Button
-                  onClick={() => {
-                    if (user && user.hearts && user.hearts.length === 0) {
-                      router.push("/add-heart?first=true")
-                    } else {
-                      router.push("/my-hearts")
-                    }
-                  }}
-                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-black"
-                >
-                  Continue Now
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {(status === "error" || status === "expired") && (
-            <div className="space-y-4">
-              <Alert className="border-red-200 bg-red-50">
+            <CardTitle className="text-2xl text-gray-900">Verify Your Email</CardTitle>
+            <p className="text-gray-600 mt-2">
+              We've sent a verification code to <strong>{user.email}</strong>
+            </p>
+          </CardHeader>
+          <CardContent>
+            {/* Error/Success Messages */}
+            {error && (
+              <Alert className="mb-6 border-red-200 bg-red-50">
                 <AlertCircle className="h-4 w-4 text-red-600" />
-                <AlertDescription className="text-red-800">{message}</AlertDescription>
+                <AlertDescription className="text-red-800">{error}</AlertDescription>
               </Alert>
+            )}
 
-              <div className="space-y-2">
-                {status === "expired" && (
-                  <Button
-                    onClick={handleResendVerification}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    Send New Verification Email
-                  </Button>
-                )}
-                <Button onClick={() => router.push("/auth")} variant="outline" className="w-full">
-                  Back to Login
-                </Button>
+            {success && (
+              <Alert className="mb-6 border-green-200 bg-green-50">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800">{success}</AlertDescription>
+              </Alert>
+            )}
+
+            <form onSubmit={handleVerification} className="space-y-4">
+              <div>
+                <Label htmlFor="verificationCode">Verification Code</Label>
+                <Input
+                  id="verificationCode"
+                  type="text"
+                  placeholder="Enter 6-digit code"
+                  value={verificationCode}
+                  onChange={(e) => {
+                    setVerificationCode(e.target.value)
+                    if (error) setError("")
+                  }}
+                  className="text-center text-lg tracking-widest border-yellow-200 focus:border-yellow-400"
+                  maxLength={6}
+                  required
+                  disabled={isLoading}
+                />
+                <p className="text-xs text-gray-500 mt-1">For demo purposes, enter any 6-digit code</p>
               </div>
+
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Verifying...
+                  </div>
+                ) : (
+                  "Verify Email"
+                )}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600 mb-3">Didn't receive the code?</p>
+              <Button
+                variant="outline"
+                onClick={handleResendCode}
+                disabled={isResending}
+                className="border-yellow-200 bg-transparent hover:bg-yellow-50"
+              >
+                {isResending ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-500 mr-2"></div>
+                    Resending...
+                  </div>
+                ) : (
+                  "Resend Code"
+                )}
+              </Button>
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <h4 className="font-medium text-yellow-800 mb-2">What's Next?</h4>
+              <ul className="text-sm text-yellow-700 space-y-1">
+                <li>• Add your first hearts (family & friends)</li>
+                <li>• Create beautiful personalized cards</li>
+                <li>• We'll handle printing and mailing</li>
+                <li>• Never miss another special occasion!</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

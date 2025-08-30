@@ -5,702 +5,384 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import {
-  Plus,
-  Edit,
-  Calendar,
-  Trash2,
-  Share2,
-  Clock,
-  AlertTriangle,
-  Mail,
-  Upload,
-  Send,
-  LogOut,
-  CreditCard,
-} from "lucide-react"
-import { format, differenceInDays } from "date-fns"
-import { PurchaseCardsModal } from "@/components/purchase-cards-modal"
-import { CsvUploadModal } from "@/components/csv-upload-modal"
-import { PaymentMethodModal } from "@/components/payment-method-modal"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Plus, Calendar, Mail, User, Settings, LogOut, Gift, Heart } from "lucide-react"
+import Link from "next/link"
+import { toast } from "@/hooks/use-toast"
 
-export default function MyHearts() {
+interface HeartData {
+  id: string
+  name: string
+  relationship: string
+  birthday?: string
+  address: string
+  lastCardSent?: string
+  totalCardsSent: number
+}
+
+export default function MyHeartsPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
-  const [hearts, setHearts] = useState<any[]>([])
-  const [showPurchaseModal, setShowPurchaseModal] = useState(false)
-  const [showCsvUpload, setShowCsvUpload] = useState(false)
-  const [showPaymentModal, setShowPaymentModal] = useState(false)
-  const [recipientLimitWarning, setRecipientLimitWarning] = useState("")
-  const [mailedCardsHistory, setMailedCardsHistory] = useState<any[]>([])
-
-  // Card allocation logic - monthly with 60-day expiration
-  const getCardAllocation = () => {
-    if (!user) return 2 // Default to 2 if no user
-    if (user?.userType === "legacy") {
-      return 7 // Legacy: 7 cards per month
-    } else {
-      return 2 // Whisper: 2 cards per month
-    }
-  }
-
-  // Card expiration logic - 60 days from allocation
-  const checkExpiredCards = () => {
-    if (!user || !user.cardAllocations) return
-
-    const now = new Date()
-    const updatedAllocations = user.cardAllocations.filter((allocation: any) => {
-      const allocationDate = new Date(allocation.date)
-      const daysSinceAllocation = differenceInDays(now, allocationDate)
-      return daysSinceAllocation < 60
-    })
-
-    if (updatedAllocations.length !== user.cardAllocations.length) {
-      const expiredCount = user.cardAllocations.length - updatedAllocations.length
-      const updatedUser = {
-        ...user,
-        cardAllocations: updatedAllocations,
-        freeCards: Math.max(0, user.freeCards - expiredCount),
-      }
-      setUser(updatedUser)
-      localStorage.setItem("currentUser", JSON.stringify(updatedUser))
-      localStorage.setItem("user", JSON.stringify(updatedUser))
-
-      if (expiredCount > 0) {
-        alert(
-          `${expiredCount} card${expiredCount > 1 ? "s" : ""} expired after 60 days and have been removed from your account.`,
-        )
-      }
-    }
-  }
-
-  // Add monthly card allocation
-  const addMonthlyCards = () => {
-    if (!user || !user.id) return
-
-    const now = new Date()
-    const currentMonth = now.toISOString().slice(0, 7)
-
-    if (!user?.lastCardAllocation || user.lastCardAllocation !== currentMonth) {
-      const cardAllocation = getCardAllocation()
-      const newAllocation = {
-        date: now.toISOString(),
-        count: cardAllocation,
-        month: currentMonth,
-      }
-
-      const updatedUser = {
-        ...user,
-        freeCards: (user.freeCards || 0) + cardAllocation,
-        cardAllocations: [...(user.cardAllocations || []), newAllocation],
-        lastCardAllocation: currentMonth,
-      }
-
-      setUser(updatedUser)
-      localStorage.setItem("currentUser", JSON.stringify(updatedUser))
-      localStorage.setItem("user", JSON.stringify(updatedUser))
-    }
-  }
+  const [hearts, setHearts] = useState<HeartData[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem("currentUser") || "{}")
-    if (userData && Object.keys(userData).length > 0) {
-      // Check if email is verified
-      if (!userData.emailVerified) {
+    const checkAuthAndLoadData = async () => {
+      try {
+        // Check authentication state
+        const isAuthenticated = localStorage.getItem("isAuthenticated")
+        const authToken = localStorage.getItem("authToken")
+        const userData = localStorage.getItem("userData")
+
+        if (!isAuthenticated || !authToken || !userData) {
+          console.log("No valid authentication found, redirecting to auth")
+          router.push("/auth")
+          return
+        }
+
+        const parsedUser = JSON.parse(userData)
+
+        // Check if user is verified
+        if (!parsedUser.isVerified) {
+          console.log("User not verified, redirecting to verification")
+          router.push("/verify-email")
+          return
+        }
+
+        setUser(parsedUser)
+
+        // Load hearts from localStorage
+        const heartsData = localStorage.getItem("userHearts")
+        if (heartsData) {
+          setHearts(JSON.parse(heartsData))
+        } else {
+          // Demo hearts for new users
+          const demoHearts: HeartData[] = [
+            {
+              id: "1",
+              name: "Mom",
+              relationship: "Mother",
+              birthday: "1965-03-15",
+              address: "123 Main St, Hometown, ST 12345",
+              lastCardSent: "2024-02-14",
+              totalCardsSent: 3,
+            },
+            {
+              id: "2",
+              name: "Sarah Johnson",
+              relationship: "Best Friend",
+              birthday: "1990-07-22",
+              address: "456 Oak Ave, Friendville, ST 67890",
+              totalCardsSent: 1,
+            },
+          ]
+          setHearts(demoHearts)
+          localStorage.setItem("userHearts", JSON.stringify(demoHearts))
+        }
+      } catch (error) {
+        console.error("Error loading user data:", error)
         router.push("/auth")
-        return
+      } finally {
+        setIsLoading(false)
       }
-      setUser(userData)
-      setHearts(userData.hearts || [])
-      setMailedCardsHistory(userData.mailedCards || [])
-    } else {
-      router.push("/auth")
     }
+
+    checkAuthAndLoadData()
   }, [router])
 
-  useEffect(() => {
-    if (user && user.id) {
-      checkExpiredCards()
-      addMonthlyCards()
-    }
-  }, [user])
+  const handleLogout = async () => {
+    try {
+      // Clear all authentication and user data
+      localStorage.removeItem("isAuthenticated")
+      localStorage.removeItem("authToken")
+      localStorage.removeItem("userSession")
+      localStorage.removeItem("userData")
+      localStorage.removeItem("userHearts")
+      localStorage.removeItem("referralCode")
 
-  const checkRecipientLimit = (recipientAddress: string) => {
-    const currentMonth = new Date().toISOString().slice(0, 7)
-    const globalLimits = JSON.parse(localStorage.getItem("globalRecipientLimits") || "{}")
-    const monthlyLimits = globalLimits[currentMonth] || {}
-    const currentCount = monthlyLimits[recipientAddress.toLowerCase()] || 0
+      // Clear session storage as well
+      sessionStorage.clear()
 
-    return {
-      count: currentCount,
-      canSend: currentCount < 3,
-      remaining: 3 - currentCount,
-    }
-  }
-
-  const updateRecipientLimit = (recipientAddress: string) => {
-    const currentMonth = new Date().toISOString().slice(0, 7)
-    const globalLimits = JSON.parse(localStorage.getItem("globalRecipientLimits") || "{}")
-
-    if (!globalLimits[currentMonth]) {
-      globalLimits[currentMonth] = {}
-    }
-
-    const addressKey = recipientAddress.toLowerCase()
-    globalLimits[currentMonth][addressKey] = (globalLimits[currentMonth][addressKey] || 0) + 1
-
-    localStorage.setItem("globalRecipientLimits", JSON.stringify(globalLimits))
-  }
-
-  const handleEdit = (heartId: string) => {
-    router.push(`/add-heart?edit=${heartId}`)
-  }
-
-  const handleSendCardNow = (heart: any) => {
-    const subject = `Urgent Card Request - ${heart.name}`
-    const body = `Hello,
-
-I need to send a card immediately to:
-Name: ${heart.name}
-Address: ${heart.address.address1}, ${heart.address.city}, ${heart.address.state} ${heart.address.zip5}
-Relationship: ${heart.relationship}
-
-Reason for urgent request: [Please specify your reason]
-Needed by date: [Please specify date]
-
-Thank you,
-${user.firstName} ${user.lastName}
-${user.email}`
-
-    window.location.href = `mailto:info@writeourheart.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-  }
-
-  const handleScheduleCard = (heart: any) => {
-    const recipientAddress =
-      `${heart.address.address1}, ${heart.address.city}, ${heart.address.state} ${heart.address.zip5}`.trim()
-    const limitCheck = checkRecipientLimit(recipientAddress)
-
-    if (!limitCheck.canSend) {
-      setRecipientLimitWarning(
-        `Global limit reached: This address has already received 3 cards this month from all users combined. To protect recipients from being overwhelmed, each address can only receive 3 cards per month. Would you like to update their address to continue?`,
-      )
-      return
-    }
-
-    if (limitCheck.remaining === 1) {
-      if (
-        !confirm(
-          `This will be your last card to ${heart.name}'s address this month (${limitCheck.count + 1}/3). Continue?`,
-        )
-      ) {
-        return
-      }
-    }
-
-    if (user.freeCards > 0) {
-      updateRecipientLimit(recipientAddress)
-
-      const updatedUser = {
-        ...user,
-        freeCards: user.freeCards - 1,
-        usedCards: (user.usedCards || 0) + 1,
-      }
-      setUser(updatedUser)
-      localStorage.setItem("currentUser", JSON.stringify(updatedUser))
-      localStorage.setItem("user", JSON.stringify(updatedUser))
-
-      setTimeout(() => {
-        const saveWriting = confirm(
-          `Card for ${heart.name} has been scheduled! 📮\n\nWould you like to save this writing for future use?`,
-        )
-        if (saveWriting) {
-          alert("Writing saved to your library! ✅")
-        }
-      }, 2000)
-
-      alert(`Card scheduled for ${heart.name}! You'll receive an email when it's mailed.`)
-
-      const newMailedCard = {
-        recipientName: heart.name,
-        recipientAddress: recipientAddress,
-        dateMailed: new Date().toISOString(),
-      }
-
-      const updatedMailedCardsHistory = [...mailedCardsHistory, newMailedCard]
-      setMailedCardsHistory(updatedMailedCardsHistory)
-
-      const updatedUserWithMailedCards = {
-        ...updatedUser,
-        mailedCards: updatedMailedCardsHistory,
-      }
-      setUser(updatedUserWithMailedCards)
-      localStorage.setItem("currentUser", JSON.stringify(updatedUserWithMailedCards))
-      localStorage.setItem("user", JSON.stringify(updatedUserWithMailedCards))
-    } else {
-      alert("No card credits available. Please wait for your monthly credit or purchase additional cards.")
-    }
-  }
-
-  const handleDelete = (heartId: string) => {
-    if (confirm("Are you sure you want to delete this Heart? This action cannot be undone.")) {
-      const updatedHearts = hearts.filter((h) => h.id !== heartId)
-      const updatedUser = { ...user, hearts: updatedHearts }
-
-      setHearts(updatedHearts)
-      setUser(updatedUser)
-      localStorage.setItem("currentUser", JSON.stringify(updatedUser))
-      localStorage.setItem("user", JSON.stringify(updatedUser))
-    }
-  }
-
-  const handleReferFriend = () => {
-    const referralLink = `${window.location.origin}?ref=${user.email}`
-    const message = `Check out Write Our Heart - the easiest way to send personalized greeting cards! Sign up with my link and we both get 2 free cards: ${referralLink}`
-
-    if (navigator.share) {
-      navigator.share({
-        title: "Write Our Heart - Personalized Greeting Cards",
-        text: message,
-        url: referralLink,
+      // Show success message
+      toast({
+        title: "Logged out successfully",
+        description: "You've been logged out. Redirecting to home page...",
       })
-    } else {
-      navigator.clipboard.writeText(message)
-      alert("Referral link copied to clipboard!")
-    }
-  }
 
-  const handlePurchaseCards = (quantity: number) => {
-    const updatedUser = {
-      ...user,
-      freeCards: user.freeCards + quantity,
-      purchasedCards: (user.purchasedCards || 0) + quantity,
-    }
-    setUser(updatedUser)
-    localStorage.setItem("currentUser", JSON.stringify(updatedUser))
-    localStorage.setItem("user", JSON.stringify(updatedUser))
-    alert(`Successfully purchased ${quantity} additional card${quantity > 1 ? "s" : ""}! 🎉`)
-  }
-
-  const handleCsvUpload = (newHearts: any[]) => {
-    const updatedHearts = [...hearts, ...newHearts]
-    const updatedUser = { ...user, hearts: updatedHearts }
-
-    setHearts(updatedHearts)
-    setUser(updatedUser)
-    localStorage.setItem("currentUser", JSON.stringify(updatedUser))
-    localStorage.setItem("user", JSON.stringify(updatedUser))
-
-    alert(`Successfully imported ${newHearts.length} hearts! 🎉`)
-  }
-
-  const handleSignOut = () => {
-    if (confirm("Are you sure you want to sign out?")) {
-      localStorage.removeItem("currentUser")
-      localStorage.removeItem("user")
+      // Small delay to show the toast, then redirect
+      setTimeout(() => {
+        router.push("/")
+      }, 1000)
+    } catch (error) {
+      console.error("Logout error:", error)
+      // Force redirect even if there's an error
       router.push("/")
     }
   }
 
-  const totalCards = (user?.freeCards || 0) + (user?.referralCards || 0)
-  const daysUntilExpiry = user?.cardCreditsExpiry ? differenceInDays(new Date(user.cardCreditsExpiry), new Date()) : 0
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+  }
 
-  if (!user) {
+  // Show loading state
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="w-16 h-16 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Heart className="w-8 h-8 text-white animate-pulse" />
+          </div>
+          <p className="text-gray-600">Loading your hearts...</p>
         </div>
       </div>
     )
   }
 
+  // If no user after loading, don't render anything (redirect will happen)
+  if (!user) {
+    return null
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50">
       {/* Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-6xl mx-auto px-4 py-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md p-2">
-                <img src="/logo.png" alt="Write Our Heart" className="w-full h-full object-contain" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-black">Hi {user.firstName}, Welcome Back!</h1>
-                <p className="text-gray-600">Manage your Hearts and schedule meaningful cards</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge className="bg-yellow-500 text-black">
-                    {user.userType === "legacy" ? "Legacy Beta" : "Whisper Beta"}
-                  </Badge>
-                  {user.betaPricing && (
-                    <Badge variant="outline" className="text-green-600 border-green-600">
-                      Beta Pricing Locked
-                    </Badge>
-                  )}
-                  <Badge variant="outline" className="text-green-600 border-green-600">
-                    ✓ Email Verified
-                  </Badge>
-                </div>
-              </div>
+      <div className="bg-white/80 backdrop-blur-sm border-b border-yellow-200">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img src="/new-logo-symbol.png" alt="Write Our Heart" className="h-8 w-8" />
+              <span className="font-bold text-yellow-600">Write Our Heart</span>
             </div>
-
-            {/* Moved buttons to the right */}
             <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-600">Welcome, {user.firstName}!</span>
               <Button
-                onClick={() => setShowPaymentModal(true)}
-                variant="outline"
-                className="flex items-center gap-2 border-blue-500 text-blue-600 hover:bg-blue-50"
-              >
-                <CreditCard className="w-4 h-4" />
-                Payment Methods
-              </Button>
-
-              <Button
-                onClick={handleSignOut}
-                variant="outline"
-                className="flex items-center gap-2 border-red-500 text-red-600 hover:bg-red-50 bg-transparent"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </Button>
-
-              <Button
-                onClick={handleReferFriend}
                 variant="outline"
                 size="sm"
-                className="flex items-center gap-2 bg-transparent"
+                onClick={handleLogout}
+                className="border-yellow-200 bg-transparent hover:bg-yellow-50"
               >
-                <Share2 className="w-4 h-4" />
-                Refer Friend (+2 cards)
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
               </Button>
-              {totalCards === 0 && (
-                <Button
-                  onClick={() => setShowPurchaseModal(true)}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2 border-yellow-500 text-yellow-600 hover:bg-yellow-50"
-                >
-                  <Plus className="w-4 h-4" />
-                  Buy Cards ($4.99 each)
-                </Button>
-              )}
             </div>
           </div>
-
-          {/* Warnings and Notifications */}
-          <div className="mt-4 space-y-3">
-            {daysUntilExpiry <= 30 && daysUntilExpiry > 0 && (
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-orange-600" />
-                  <span className="text-sm text-orange-800">
-                    Your card credits expire in {daysUntilExpiry} days (60-day limit). Schedule cards now to avoid
-                    losing them!
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {recipientLimitWarning && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm text-blue-800">{recipientLimitWarning}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setRecipientLimitWarning("")}>
-                      Cancel
-                    </Button>
-                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
-                      Update Address
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Updated stats grid - moved card info under Monthly Allocation and Card Expiration */}
-          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div className="bg-blue-50 rounded-lg p-3 text-center">
-              <div className="font-semibold text-blue-800">Cards This Month</div>
-              <div className="text-blue-600">
-                {user.usedCards || 0} used • {user.freeCards || 0} remaining
-              </div>
-            </div>
-            <div className="bg-green-50 rounded-lg p-3 text-center">
-              <div className="font-semibold text-green-800">Monthly Allocation</div>
-              <div className="text-green-600">{getCardAllocation()} cards/month</div>
-              {/* Moved card availability info here */}
-              <div className="text-xs text-green-500 mt-1">
-                {totalCards} Cards Available
-                <br />
-                {user.freeCards} free • {user.referralCards || 0} referral
-              </div>
-            </div>
-            <div className="bg-purple-50 rounded-lg p-3 text-center">
-              <div className="font-semibold text-purple-800">Card Expiration</div>
-              <div className="text-purple-600">60 days from issue</div>
-              {/* Added referral card expiration info */}
-              <div className="text-xs text-purple-500 mt-1">Referral cards expire in 60 days</div>
-            </div>
-            <div className="bg-yellow-50 rounded-lg p-3 text-center">
-              <div className="font-semibold text-yellow-800">Plan</div>
-              <div className="text-yellow-600">
-                {user.userType === "legacy" ? "Legacy" : "Whisper"} - ${user.userType === "legacy" ? "25.99" : "8.99"}
-                /mo
-              </div>
-            </div>
-          </div>
-
-          <Accordion type="single" collapsible className="w-full mt-4">
-            <AccordionItem value="mailed-cards-history">
-              <AccordionTrigger>
-                <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4" />
-                  Mailed Cards History ({mailedCardsHistory.length})
-                </div>
-              </AccordionTrigger>
-              <AccordionContent>
-                {mailedCardsHistory.length === 0 ? (
-                  <p className="text-sm text-gray-500">No cards mailed yet.</p>
-                ) : (
-                  <ul className="list-disc pl-5 text-sm">
-                    {mailedCardsHistory.map((card, index) => (
-                      <li key={index} className="text-gray-600">
-                        Sent to {card.recipientName} ({card.recipientAddress}) on{" "}
-                        {format(new Date(card.dateMailed), "MMM dd, yyyy")}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {hearts.length === 0 ? (
-          <Card className="text-center py-12">
-            <CardContent>
-              <div className="w-20 h-20 mx-auto mb-6 bg-yellow-100 rounded-full flex items-center justify-center">
-                <Plus className="w-10 h-10 text-yellow-600" />
+        {/* Welcome Section */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">My Hearts</h1>
+              <p className="text-gray-600">The people you care about most</p>
+            </div>
+            <Link href="/add-heart">
+              <Button className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Heart
+              </Button>
+            </Link>
+          </div>
+
+          {/* Referral Bonus Banner */}
+          {user.referralCode && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center gap-2 mb-2">
+                <Gift className="w-5 h-5 text-green-600" />
+                <span className="font-medium text-green-800">Referral Bonus Active!</span>
               </div>
-              <h2 className="text-xl font-semibold text-black mb-2">No Hearts Added Yet</h2>
-              <p className="text-gray-600 mb-6">Add your first Heart to start sending personalized greeting cards</p>
-              <div className="flex justify-center gap-3">
-                <Button
-                  onClick={() => router.push("/add-heart")}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-black"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Your First Heart
-                </Button>
-                <Button
-                  onClick={() => setShowCsvUpload(true)}
-                  variant="outline"
-                  className="border-blue-500 text-blue-600 hover:bg-blue-50"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Import from CSV
-                </Button>
+              <p className="text-sm text-green-700">
+                You have 2 free cards from your referral bonus. Start creating cards to use them!
+              </p>
+            </div>
+          )}
+
+          {/* Stats Cards */}
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            <Card className="bg-white/80 backdrop-blur-sm border border-yellow-200">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                    <Plus className="w-6 h-6 text-yellow-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900">{hearts.length}</p>
+                    <p className="text-sm text-gray-600">Hearts Added</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/80 backdrop-blur-sm border border-yellow-200">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Mail className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {hearts.reduce((total, heart) => total + heart.totalCardsSent, 0)}
+                    </p>
+                    <p className="text-sm text-gray-600">Cards Sent</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/80 backdrop-blur-sm border border-yellow-200">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <Calendar className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {hearts.filter((heart) => heart.birthday).length}
+                    </p>
+                    <p className="text-sm text-gray-600">Birthdays Tracked</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Hearts List */}
+        <div className="space-y-4">
+          {hearts.length === 0 ? (
+            <Card className="bg-white/80 backdrop-blur-sm border border-yellow-200">
+              <CardContent className="p-12 text-center">
+                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Plus className="w-8 h-8 text-yellow-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No hearts added yet</h3>
+                <p className="text-gray-600 mb-6">
+                  Start by adding the people you care about most. We'll help you stay connected with beautiful,
+                  personalized cards.
+                </p>
+                <Link href="/add-heart">
+                  <Button className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Your First Heart
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          ) : (
+            hearts.map((heart) => (
+              <Card key={heart.id} className="bg-white/80 backdrop-blur-sm border border-yellow-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
+                        <User className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">{heart.name}</h3>
+                        <p className="text-sm text-gray-600">{heart.relationship}</p>
+                        {heart.birthday && (
+                          <p className="text-sm text-gray-500">Birthday: {formatDate(heart.birthday)}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className="text-blue-600 border-blue-600">
+                            {heart.totalCardsSent} cards sent
+                          </Badge>
+                        </div>
+                        {heart.lastCardSent && (
+                          <p className="text-xs text-gray-500">Last: {formatDate(heart.lastCardSent)}</p>
+                        )}
+                      </div>
+                      <Link href={`/personalize-message?heartId=${heart.id}`}>
+                        <Button
+                          size="sm"
+                          className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white"
+                        >
+                          Send Card
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+
+        {/* Quick Actions */}
+        <div className="mt-12 grid md:grid-cols-2 gap-6">
+          <Card className="bg-white/80 backdrop-blur-sm border border-yellow-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-blue-600" />
+                Upcoming Occasions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {hearts.filter((heart) => heart.birthday).length > 0 ? (
+                <div className="space-y-3">
+                  {hearts
+                    .filter((heart) => heart.birthday)
+                    .slice(0, 3)
+                    .map((heart) => (
+                      <div key={heart.id} className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">{heart.name}</p>
+                          <p className="text-sm text-gray-600">Birthday: {formatDate(heart.birthday!)}</p>
+                        </div>
+                        <Link href={`/personalize-message?heartId=${heart.id}&occasion=birthday`}>
+                          <Button size="sm" variant="outline" className="border-yellow-200 bg-transparent">
+                            Send Card
+                          </Button>
+                        </Link>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <p className="text-gray-600 text-sm">Add birthdays to your hearts to see upcoming occasions here.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/80 backdrop-blur-sm border border-yellow-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="w-5 h-5 text-purple-600" />
+                Quick Actions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <Link href="/add-heart" className="block">
+                  <Button variant="outline" className="w-full justify-start border-yellow-200 bg-transparent">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add New Heart
+                  </Button>
+                </Link>
+                <Link href="/demo" className="block">
+                  <Button variant="outline" className="w-full justify-start border-yellow-200 bg-transparent">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Try Demo Mode
+                  </Button>
+                </Link>
+                <Link href="/choose-plan" className="block">
+                  <Button variant="outline" className="w-full justify-start border-yellow-200 bg-transparent">
+                    <Plus className="w-4 h-4 mr-2" />
+                    View Plans
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>
-        ) : (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-black">Your Hearts ({hearts.length})</h2>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => setShowCsvUpload(true)}
-                  variant="outline"
-                  className="flex items-center gap-2 border-blue-500 text-blue-600 hover:bg-blue-50"
-                >
-                  <Upload className="w-4 h-4" />
-                  Import CSV
-                </Button>
-                <Button
-                  onClick={() => router.push("/add-heart")}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-black"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add New Heart
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {hearts.map((heart) => {
-                const recipientAddress =
-                  `${heart.address?.address1 || heart.address}, ${heart.address?.city || heart.city}, ${heart.address?.state || heart.state} ${heart.address?.zip5 || heart.zipCode}`.trim()
-                const limitCheck = checkRecipientLimit(recipientAddress)
-
-                return (
-                  <Card key={heart.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg text-black">{heart.name}</CardTitle>
-                          <p className="text-sm text-gray-600">{heart.relationship}</p>
-                        </div>
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(heart.id)} className="h-8 w-8 p-0">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-
-                    <CardContent className="space-y-4">
-                      <div className="space-y-1 text-sm">
-                        {heart.email && <p className="text-gray-600">{heart.email}</p>}
-                        {heart.phone && <p className="text-gray-600">{heart.phone}</p>}
-                        {(heart.address || heart.address?.address1) && (
-                          <div>
-                            <p className="text-gray-600">{recipientAddress}</p>
-                            <div className="flex items-center gap-1 mt-1">
-                              <div
-                                className={`w-2 h-2 rounded-full ${
-                                  limitCheck.remaining === 0
-                                    ? "bg-red-500"
-                                    : limitCheck.remaining === 1
-                                      ? "bg-orange-500"
-                                      : "bg-green-500"
-                                }`}
-                              ></div>
-                              <span className="text-xs text-gray-500">
-                                {limitCheck.remaining}/3 cards allowed to this address this month (global limit)
-                              </span>
-                            </div>
-                            <div className="text-xs text-blue-600 mt-1">
-                              ℹ️ This protects recipients from getting too many cards
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        <p className="text-sm font-medium text-black mb-2">Occasions:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {heart.occasions?.slice(0, 3).map((occasion: string) => (
-                            <Badge key={occasion} variant="secondary" className="text-xs">
-                              {occasion === "Other" ? heart.customOccasion : occasion}
-                            </Badge>
-                          ))}
-                          {heart.occasions?.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{heart.occasions.length - 3} more
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      {heart.occasionDates && Object.keys(heart.occasionDates).length > 0 && (
-                        <div>
-                          <p className="text-sm font-medium text-black mb-2">Upcoming:</p>
-                          <div className="space-y-1">
-                            {Object.entries(heart.occasionDates)
-                              .slice(0, 2)
-                              .map(([occasion, date]: [string, any]) => (
-                                <div key={occasion} className="flex items-center gap-2 text-xs text-gray-600">
-                                  <Calendar className="w-3 h-3" />
-                                  <span>
-                                    {occasion === "Other" ? heart.customOccasion : occasion} -{" "}
-                                    {format(new Date(date), "MMM dd")}
-                                  </span>
-                                </div>
-                              ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex gap-2 pt-2">
-                        <Button
-                          onClick={() => handleSendCardNow(heart)}
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 border-blue-500 text-blue-600 hover:bg-blue-50"
-                        >
-                          <Send className="w-4 h-4 mr-1" />
-                          Send Card Now
-                        </Button>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => handleScheduleCard(heart)}
-                          size="sm"
-                          className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black"
-                          disabled={totalCards === 0 || limitCheck.remaining === 0}
-                        >
-                          {limitCheck.remaining === 0 ? "Address Limit Reached" : "Schedule Card"}
-                        </Button>
-                        <Button
-                          onClick={() => handleDelete(heart.id)}
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-
-                      {totalCards === 0 && (
-                        <div className="text-center pt-2">
-                          <div className="text-xs text-red-600 mb-2">
-                            No cards available. Wait for monthly credit or:
-                          </div>
-                          <Button
-                            onClick={() => setShowPurchaseModal(true)}
-                            size="sm"
-                            variant="outline"
-                            className="text-xs border-yellow-500 text-yellow-600 hover:bg-yellow-50"
-                          >
-                            Buy Additional Cards ($4.99 each)
-                          </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        <div className="mt-8 text-center">
-          <a href="/faq" className="text-sm text-yellow-600 hover:text-yellow-700">
-            View FAQ & Terms →
-          </a>
         </div>
       </div>
-
-      <PurchaseCardsModal
-        isOpen={showPurchaseModal}
-        onClose={() => setShowPurchaseModal(false)}
-        onPurchase={handlePurchaseCards}
-        userType={user.userType}
-      />
-
-      <CsvUploadModal
-        isOpen={showCsvUpload}
-        onClose={() => setShowCsvUpload(false)}
-        onUploadComplete={handleCsvUpload}
-      />
-
-      <PaymentMethodModal
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        user={user}
-        onUpdate={(updatedUser) => {
-          setUser(updatedUser)
-          localStorage.setItem("currentUser", JSON.stringify(updatedUser))
-          localStorage.setItem("user", JSON.stringify(updatedUser))
-        }}
-      />
     </div>
   )
 }

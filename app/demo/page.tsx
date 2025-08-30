@@ -2,244 +2,261 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Heart, Sparkles, Send, Gift } from "lucide-react"
-import Image from "next/image"
+import { Heart, ArrowLeft, Sparkles, Mail, Palette } from "lucide-react"
+import Link from "next/link"
 
 export default function DemoPage() {
-  const [selectedStep, setSelectedStep] = useState(1)
+  const [step, setStep] = useState(1)
+  const [formData, setFormData] = useState({
+    recipientName: "",
+    occasion: "",
+    personalMessage: "",
+    relationship: "",
+  })
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const nextStep = () => {
+    if (step < 4) setStep(step + 1)
+  }
+
+  const prevStep = () => {
+    if (step > 1) setStep(step - 1)
+  }
+
+  const resetDemo = () => {
+    setStep(1)
+    setFormData({
+      recipientName: "",
+      occasion: "",
+      personalMessage: "",
+      relationship: "",
+    })
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-3">
-              <Image
-                src="/new-logo-symbol.png"
-                alt="Write Our Heart Logo"
-                width={40}
-                height={40}
-                className="rounded-lg"
-              />
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Write Our Heart</h1>
-                <p className="text-sm text-gray-600">Personalized Poetry Cards</p>
-              </div>
+      <div className="bg-white/80 backdrop-blur-sm border-b border-yellow-200">
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2 text-gray-600 hover:text-yellow-600">
+              <ArrowLeft className="w-4 h-4" />
+              Back to Home
+            </Link>
+            <div className="flex items-center gap-2">
+              <img src="/new-logo-symbol.png" alt="Write Our Heart" className="h-8 w-8" />
+              <span className="font-bold text-yellow-600">Write Our Heart Demo</span>
             </div>
-            <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        {/* Progress Bar */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm font-medium text-gray-600">Step {step} of 4</span>
+            <Badge variant="outline" className="text-yellow-600 border-yellow-600">
               Demo Mode
             </Badge>
           </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">See How Write Our Heart Works</h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Experience the magic of AI-powered personalized poetry cards. Create heartfelt messages for your loved ones
-            in minutes.
-          </p>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-gradient-to-r from-yellow-400 to-orange-500 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${(step / 4) * 100}%` }}
+            />
+          </div>
         </div>
 
-        <Tabs defaultValue="demo" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="demo">Demo</TabsTrigger>
-            <TabsTrigger value="how-it-works">How It Works</TabsTrigger>
-          </TabsList>
+        {/* Step Content */}
+        <Card className="bg-white/80 backdrop-blur-sm border border-yellow-200">
+          <CardHeader>
+            <CardTitle className="text-2xl text-gray-900">
+              {step === 1 && "Who are you sending a card to?"}
+              {step === 2 && "What's the occasion?"}
+              {step === 3 && "Share your heartfelt message"}
+              {step === 4 && "Your beautiful card is ready!"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {step === 1 && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Recipient's Name</label>
+                  <Input
+                    placeholder="e.g., Mom, Sarah, Grandpa Joe"
+                    value={formData.recipientName}
+                    onChange={(e) => handleInputChange("recipientName", e.target.value)}
+                    className="border-yellow-200 focus:border-yellow-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Your relationship</label>
+                  <Input
+                    placeholder="e.g., daughter, son, friend, grandchild"
+                    value={formData.relationship}
+                    onChange={(e) => handleInputChange("relationship", e.target.value)}
+                    className="border-yellow-200 focus:border-yellow-400"
+                  />
+                </div>
+              </div>
+            )}
 
-          <TabsContent value="demo" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Step 1: Choose Occasion */}
-              <Card
-                className={`cursor-pointer transition-all ${selectedStep === 1 ? "ring-2 ring-pink-500 shadow-lg" : ""}`}
-                onClick={() => setSelectedStep(1)}
-              >
-                <CardHeader className="text-center">
-                  <div className="mx-auto w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center mb-2">
-                    <Heart className="w-6 h-6 text-pink-600" />
-                  </div>
-                  <CardTitle className="text-lg">Choose Occasion</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <Button variant="outline" size="sm" className="w-full bg-transparent">
-                      Birthday
-                    </Button>
-                    <Button variant="outline" size="sm" className="w-full bg-transparent">
-                      Anniversary
-                    </Button>
-                    <Button variant="outline" size="sm" className="w-full bg-transparent">
-                      Thank You
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+            {step === 2 && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">What's the occasion?</label>
+                  <Input
+                    placeholder="e.g., Birthday, Anniversary, Just Because, Thank You"
+                    value={formData.occasion}
+                    onChange={(e) => handleInputChange("occasion", e.target.value)}
+                    className="border-yellow-200 focus:border-yellow-400"
+                  />
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {["Birthday", "Anniversary", "Thank You", "Just Because", "Get Well", "Congratulations"].map(
+                    (occasion) => (
+                      <Button
+                        key={occasion}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleInputChange("occasion", occasion)}
+                        className="border-yellow-200 hover:bg-yellow-50 hover:border-yellow-400"
+                      >
+                        {occasion}
+                      </Button>
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
 
-              {/* Step 2: Add Personal Details */}
-              <Card
-                className={`cursor-pointer transition-all ${selectedStep === 2 ? "ring-2 ring-purple-500 shadow-lg" : ""}`}
-                onClick={() => setSelectedStep(2)}
-              >
-                <CardHeader className="text-center">
-                  <div className="mx-auto w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mb-2">
-                    <Sparkles className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <CardTitle className="text-lg">Add Personal Details</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <p>• Recipient's name</p>
-                    <p>• Your relationship</p>
-                    <p>• Special memories</p>
-                    <p>• Personal message</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Step 3: AI Creates Poetry */}
-              <Card
-                className={`cursor-pointer transition-all ${selectedStep === 3 ? "ring-2 ring-blue-500 shadow-lg" : ""}`}
-                onClick={() => setSelectedStep(3)}
-              >
-                <CardHeader className="text-center">
-                  <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-2">
-                    <Sparkles className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <CardTitle className="text-lg">AI Creates Poetry</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm italic text-gray-700">
-                      "In moments shared and laughter bright,
-                      <br />
-                      Your friendship fills my heart with light..."
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Step 4: Send Your Card */}
-              <Card
-                className={`cursor-pointer transition-all ${selectedStep === 4 ? "ring-2 ring-green-500 shadow-lg" : ""}`}
-                onClick={() => setSelectedStep(4)}
-              >
-                <CardHeader className="text-center">
-                  <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-2">
-                    <Send className="w-6 h-6 text-green-600" />
-                  </div>
-                  <CardTitle className="text-lg">Send Your Card</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <Button size="sm" className="w-full bg-green-600 hover:bg-green-700">
-                      <Gift className="w-4 h-4 mr-2" />
-                      Mail Physical Card
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Demo Preview */}
-            <Card className="mt-8">
-              <CardHeader>
-                <CardTitle>Preview: Your Personalized Card</CardTitle>
-                <CardDescription>This is what your AI-generated poetry card will look like</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-gradient-to-br from-pink-100 to-purple-100 p-8 rounded-lg text-center">
-                  <div className="bg-white p-6 rounded-lg shadow-lg max-w-md mx-auto">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">Happy Birthday, Sarah!</h3>
-                    <div className="text-gray-700 leading-relaxed">
-                      <p className="italic mb-4">
-                        "Another year of joy and grace,
-                        <br />A smile that lights up every space.
-                        <br />
-                        Through seasons shared and memories made,
-                        <br />
-                        Our friendship's bond will never fade."
-                      </p>
-                      <p className="text-sm">
-                        With love,
-                        <br />
-                        Your Friend
+            {step === 3 && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Your personal message (we'll make it beautiful!)
+                  </label>
+                  <Textarea
+                    placeholder="Share what's in your heart... Our AI will help enhance your words while keeping your authentic voice."
+                    value={formData.personalMessage}
+                    onChange={(e) => handleInputChange("personalMessage", e.target.value)}
+                    className="border-yellow-200 focus:border-yellow-400 min-h-32"
+                  />
+                </div>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Sparkles className="w-5 h-5 text-yellow-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-yellow-800 mb-1">AI Enhancement Preview</h4>
+                      <p className="text-sm text-yellow-700">
+                        Our AI will take your heartfelt words and enhance them with beautiful language, poetry, and
+                        formatting while keeping your authentic voice and sentiment.
                       </p>
                     </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </div>
+            )}
 
-          <TabsContent value="how-it-works" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Heart className="w-5 h-5 mr-2 text-pink-600" />
-                    Personal Touch
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-600">
-                    Share your memories, feelings, and special moments. Our AI uses these personal details to create
-                    truly meaningful poetry.
+            {step === 4 && (
+              <div className="space-y-6">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Heart className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Card Created Successfully!</h3>
+                  <p className="text-gray-600">Here's what would happen next in the real app:</p>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <Sparkles className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                    <h4 className="font-medium text-blue-800 mb-1">AI Enhancement</h4>
+                    <p className="text-sm text-blue-600">
+                      Your message would be enhanced with beautiful poetry and formatting
+                    </p>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                    <Palette className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+                    <h4 className="font-medium text-purple-800 mb-1">Beautiful Design</h4>
+                    <p className="text-sm text-purple-600">
+                      A stunning card design would be created to match your message
+                    </p>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <Mail className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                    <h4 className="font-medium text-green-800 mb-1">Professional Mailing</h4>
+                    <p className="text-sm text-green-600">
+                      We'd print, address, stamp, and mail your card professionally
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg p-6 text-center">
+                  <h4 className="text-xl font-bold text-white mb-2">Ready to create real cards?</h4>
+                  <p className="text-white/90 mb-4">
+                    Join our beta program and start sending heartfelt cards to your loved ones!
                   </p>
-                </CardContent>
-              </Card>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <Link href="/auth">
+                      <Button className="bg-white text-gray-900 hover:bg-gray-100">Start Your Beta Journey</Button>
+                    </Link>
+                    <Button
+                      variant="outline"
+                      onClick={resetDemo}
+                      className="border-white text-white hover:bg-white/10 bg-transparent"
+                    >
+                      Try Demo Again
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Sparkles className="w-5 h-5 mr-2 text-purple-600" />
-                    AI Poetry Generation
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-600">
-                    Advanced AI crafts beautiful, personalized poems that capture your unique relationship and the
-                    occasion you're celebrating.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Send className="w-5 h-5 mr-2 text-blue-600" />
-                    Beautiful Delivery
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-600">
-                    Your personalized poetry card is professionally printed and mailed directly to your loved one's
-                    doorstep.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Ready to Create Your First Card?</CardTitle>
-                <CardDescription>
-                  Join thousands of people who have already sent heartfelt, personalized poetry cards to their loved
-                  ones.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button size="lg" className="w-full md:w-auto">
-                  Start Creating Your Card
+            {/* Navigation Buttons */}
+            {step < 4 && (
+              <div className="flex justify-between pt-6">
+                <Button
+                  variant="outline"
+                  onClick={prevStep}
+                  disabled={step === 1}
+                  className="border-yellow-200 hover:bg-yellow-50 bg-transparent"
+                >
+                  Previous
                 </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                <Button
+                  onClick={nextStep}
+                  disabled={
+                    (step === 1 && (!formData.recipientName || !formData.relationship)) ||
+                    (step === 2 && !formData.occasion) ||
+                    (step === 3 && !formData.personalMessage)
+                  }
+                  className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white"
+                >
+                  {step === 3 ? "Create Card" : "Next"}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Demo Info */}
+        <div className="mt-8 text-center">
+          <div className="bg-white/60 backdrop-blur-sm border border-yellow-200 rounded-lg p-4 max-w-2xl mx-auto">
+            <p className="text-sm text-gray-600">
+              <strong>This is a demo.</strong> In the real app, your cards would be professionally printed on premium
+              cardstock and mailed directly to recipients. Join our beta to start creating real cards!
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   )
