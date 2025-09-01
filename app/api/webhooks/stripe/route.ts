@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import type Stripe from "stripe"
-import { stripe } from "@/lib/stripe-production"
+import { getStripe } from "@/lib/stripe-production"
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
 
     let event: Stripe.Event
 
-    const stripeClient = stripe()
+    const stripeClient = getStripe()
 
     try {
       event = stripeClient.webhooks.constructEvent(body, signature, webhookSecret)

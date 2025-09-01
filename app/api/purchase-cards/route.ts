@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { stripe } from "@/lib/stripe-production"
+import { getStripe } from "@/lib/stripe-production"
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     // Calculate amount (e.g., $2 per card)
     const amount = cardCount * 200 // $2.00 in cents
 
-    const stripeClient = stripe()
+    const stripeClient = getStripe()
 
     // Create payment intent
     const paymentIntent = await stripeClient.paymentIntents.create({

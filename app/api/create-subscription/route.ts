@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { stripe } from "@/lib/stripe-production"
+import { getStripe } from "@/lib/stripe-production"
 import { sendWelcomeEmail } from "@/lib/email-system"
 import type Stripe from "stripe"
 
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Stripe price IDs not configured" }, { status: 500 })
     }
 
-    const stripeClient = stripe()
+    const stripeClient = getStripe()
 
     // Create customer
     const customer = await stripeClient.customers.create({

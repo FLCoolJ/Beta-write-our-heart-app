@@ -17,6 +17,7 @@ const getStripe = (): Stripe => {
   return stripeInstance
 }
 
+export { getStripe }
 export const stripe = getStripe
 export default getStripe
 
