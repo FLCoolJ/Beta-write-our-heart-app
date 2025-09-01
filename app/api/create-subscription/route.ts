@@ -1,10 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import Stripe from "stripe"
+import { stripe } from "@/lib/stripe-production"
 import { sendWelcomeEmail } from "@/lib/email-system"
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-06-20",
-})
+import type Stripe from "stripe"
 
 export async function POST(request: NextRequest) {
   try {
