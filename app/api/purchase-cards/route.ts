@@ -12,8 +12,10 @@ export async function POST(request: NextRequest) {
     // Calculate amount (e.g., $2 per card)
     const amount = cardCount * 200 // $2.00 in cents
 
+    const stripeClient = stripe()
+
     // Create payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
+    const paymentIntent = await stripeClient.paymentIntents.create({
       amount,
       currency: "usd",
       customer: customerId,

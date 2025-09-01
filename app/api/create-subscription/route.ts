@@ -19,8 +19,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Stripe price IDs not configured" }, { status: 500 })
     }
 
+    const stripeClient = stripe()
+
     // Create customer
-    const customer = await stripe.customers.create({
+    const customer = await stripeClient.customers.create({
       payment_method: paymentMethodId,
       email: userEmail,
       name: userName,
@@ -30,7 +32,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Create subscription
-    const subscription = await stripe.subscriptions.create({
+    const subscription = await stripeClient.subscriptions.create({
       customer: customer.id,
       items: [{ price: priceId }],
       default_payment_method: paymentMethodId,

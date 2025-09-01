@@ -1,17 +1,27 @@
 import Stripe from "stripe"
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error("STRIPE_SECRET_KEY is not set in environment variables")
+let stripeInstance: Stripe | null = null
+
+const getStripe = (): Stripe => {
+  if (!stripeInstance) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error("STRIPE_SECRET_KEY is not set in environment variables")
+    }
+
+    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2024-06-20",
+      typescript: true,
+    })
+  }
+
+  return stripeInstance
 }
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-06-20",
-  typescript: true,
-})
-
-export default stripe
+export const stripe = getStripe
+export default getStripe
 
 export const getStripeCustomerByEmail = async (email: string) => {
+  const stripe = getStripe()
   const customers = await stripe.customers.list({
     email: email,
     limit: 1,
@@ -20,6 +30,7 @@ export const getStripeCustomerByEmail = async (email: string) => {
 }
 
 export const createStripeCustomer = async (email: string, name: string, paymentMethodId: string) => {
+  const stripe = getStripe()
   return await stripe.customers.create({
     email,
     name,
@@ -31,6 +42,7 @@ export const createStripeCustomer = async (email: string, name: string, paymentM
 }
 
 export const createSubscription = async (customerId: string, priceId: string) => {
+  const stripe = getStripe()
   return await stripe.subscriptions.create({
     customer: customerId,
     items: [{ price: priceId }],
