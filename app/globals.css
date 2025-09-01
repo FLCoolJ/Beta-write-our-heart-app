@@ -13,26 +13,38 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Updated primary colors to use yellow/gold theme */
+    --primary: 45 93% 47%; /* #F59E0B - Deep Yellow */
+    --primary-foreground: 0 0% 0%; /* Black text on yellow */
 
-    --secondary: 210 40% 96.1%;
+    /* Updated secondary to use lighter yellow */
+    --secondary: 48 96% 89%; /* #FDE047 - Light Yellow */
     --secondary-foreground: 222.2 47.4% 11.2%;
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96.1%;
+    /* Updated accent to use warm yellow */
+    --accent: 48 96% 89%; /* #FDE047 - Light Yellow */
     --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Updated border to use yellow tint */
+    --border: 48 96% 89%; /* Light yellow border */
+    --input: 48 96% 89%; /* Light yellow input border */
+    --ring: 45 93% 47%; /* Yellow focus ring */
 
     --radius: 0.5rem;
+
+    /* Added custom Write Our Heart brand colors */
+    --brand-yellow: 48 96% 89%; /* #FDE047 */
+    --brand-gold: 45 93% 47%; /* #F59E0B */
+    --brand-orange: 25 95% 53%; /* #FB923C */
+    --success: 142 76% 36%; /* #10B981 */
+    --info: 217 91% 60%; /* #3B82F6 */
+    --warning: 45 93% 47%; /* #F59E0B */
   }
 
   .dark {
@@ -45,8 +57,9 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Dark mode primary uses lighter yellow for better contrast */
+    --primary: 48 96% 89%; /* Light yellow for dark mode */
+    --primary-foreground: 222.2 84% 4.9%; /* Dark text on light yellow */
 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -54,7 +67,8 @@
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 217.2 32.6% 17.5%;
+    /* Dark mode accent uses muted yellow */
+    --accent: 45 93% 47%; /* Gold accent for dark mode */
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
@@ -62,7 +76,15 @@
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --ring: 48 96% 89%; /* Light yellow ring for dark mode */
+
+    /* Dark mode brand colors with adjusted contrast */
+    --brand-yellow: 48 96% 89%;
+    --brand-gold: 45 93% 47%;
+    --brand-orange: 25 95% 53%;
+    --success: 142 76% 36%;
+    --info: 217 91% 60%;
+    --warning: 45 93% 47%;
   }
 }
 
@@ -72,5 +94,33 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Added utility classes for brand colors */
+@layer utilities {
+  .bg-brand-yellow {
+    background-color: hsl(var(--brand-yellow));
+  }
+  .bg-brand-gold {
+    background-color: hsl(var(--brand-gold));
+  }
+  .bg-brand-orange {
+    background-color: hsl(var(--brand-orange));
+  }
+  .text-brand-yellow {
+    color: hsl(var(--brand-yellow));
+  }
+  .text-brand-gold {
+    color: hsl(var(--brand-gold));
+  }
+  .text-brand-orange {
+    color: hsl(var(--brand-orange));
+  }
+  .border-brand-yellow {
+    border-color: hsl(var(--brand-yellow));
+  }
+  .border-brand-gold {
+    border-color: hsl(var(--brand-gold));
   }
 }
