@@ -1,12 +1,11 @@
-// In a real production application, this data would be fetched from a secure database.
-// For demonstration purposes, we are using mock data to simulate a multi-user environment.
+import { getAllUsers, type User } from "./auth-system"
 
 export interface AdminUser {
   id: string
   firstName: string
   lastName: string
   email: string
-  plan: "legacy" | "whisper"
+  plan: "legacy" | "whisper" | "none"
   freeCards: number
   usedCards: number
   heartsCount: number
@@ -35,105 +34,50 @@ export interface AdminActivity {
   timestamp: string
 }
 
-const mockUsers: AdminUser[] = [
-  {
-    id: "user-1",
-    firstName: "Alice",
-    lastName: "Smith",
-    email: "alice.smith@example.com",
-    plan: "legacy",
-    freeCards: 2,
-    usedCards: 8,
-    heartsCount: 5,
-    mailedCardsCount: 8,
-    createdAt: "2024-01-10T10:00:00Z",
-  },
-  {
-    id: "user-2",
-    firstName: "Bob",
-    lastName: "Johnson",
-    email: "bob.j@example.com",
-    plan: "whisper",
-    freeCards: 1,
-    usedCards: 1,
-    heartsCount: 2,
-    mailedCardsCount: 1,
-    createdAt: "2024-02-20T14:30:00Z",
-  },
-  {
-    id: "user-3",
-    firstName: "Charlie",
-    lastName: "Brown",
-    email: "charlie.b@example.com",
-    plan: "whisper",
-    freeCards: 0,
-    usedCards: 2,
-    heartsCount: 3,
-    mailedCardsCount: 2,
-    createdAt: "2024-03-05T09:15:00Z",
-  },
-]
+function convertToAdminUser(user: User): AdminUser {
+  return {
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+    plan: user.plan || "none",
+    freeCards: user.freeCards,
+    usedCards: user.usedCards,
+    heartsCount: user.hearts?.length || 0,
+    mailedCardsCount: user.mailedCardsCount || 0,
+    createdAt: user.createdAt,
+  }
+}
 
-const mockMailedCards: AdminMailedCard[] = [
-  {
-    id: "card-1",
-    userId: "user-1",
-    userEmail: "alice.smith@example.com",
-    recipientName: "Mom",
-    dateMailed: "2024-03-15T11:00:00Z",
-    occasion: "Birthday",
-  },
-  {
-    id: "card-2",
-    userId: "user-2",
-    userEmail: "bob.j@example.com",
-    recipientName: "John Doe",
-    dateMailed: "2024-03-18T16:45:00Z",
-    occasion: "Thank You",
-  },
-  {
-    id: "card-3",
-    userId: "user-1",
-    userEmail: "alice.smith@example.com",
-    recipientName: "Dad",
-    dateMailed: "2024-03-20T12:00:00Z",
-    occasion: "Father's Day",
-  },
-]
-
-// This is a mock data source. In a real application, this would fetch data from your database.
 export const getAdminData = async () => {
   // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise((resolve) => setTimeout(resolve, 500))
+
+  const realUsers = getAllUsers()
+  const totalUsers = realUsers.length
+  const totalCardsSent = realUsers.reduce((sum, user) => sum + (user.mailedCardsCount || 0), 0)
+  const revenue = realUsers.reduce((sum, user) => {
+    const planRevenue = user.plan === "legacy" ? 19.99 : user.plan === "whisper" ? 9.99 : 0
+    const additionalCards = Math.max(0, user.usedCards - user.freeCards)
+    return sum + planRevenue + additionalCards * 4.99
+  }, 0)
+
+  const recentActivity = realUsers
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 4)
+    .map((user) => ({
+      user: user.email,
+      description: "New user signed up",
+      timestamp: new Date(user.createdAt).toLocaleDateString(),
+    }))
 
   return {
-    totalUsers: 148,
-    totalCardsSent: 312,
-    revenue: 4520.50,
-    recentActivity: [
-      {
-        user: "john.doe@example.com",
-        description: "New user signed up",
-        timestamp: "2 hours ago",
-      },
-      {
-        user: "jane.smith@example.com",
-        description: "Sent a 'Happy Birthday' card",
-        timestamp: "3 hours ago",
-      },
-      {
-        user: "sam.wilson@example.com",
-        description: "Purchased 10 card credits",
-        timestamp: "5 hours ago",
-      },
-      {
-        user: "lisa.white@example.com",
-        description: "New user signed up",
-        timestamp: "1 day ago",
-      },
-    ],
-  };
-};
+    totalUsers,
+    totalCardsSent,
+    revenue,
+    recentActivity,
+  }
+}
 
 export async function getAdminDashboardData(): Promise<{
   users: AdminUser[]
@@ -141,19 +85,36 @@ export async function getAdminDashboardData(): Promise<{
   stats: AdminStats
   activity: AdminActivity[]
 }> {
-  // This function simulates a delay as if fetching from a remote database.
-  await new Promise((resolve) => setTimeout(resolve, 500))
+  const realUsers = getAllUsers()
+  const adminUsers = realUsers.map(convertToAdminUser)
 
-  const adminData = await getAdminData();
+  const totalUsers = adminUsers.length
+  const totalCardsSent = adminUsers.reduce((sum, user) => sum + user.mailedCardsCount, 0)
+  const monthlyRevenue = adminUsers.reduce((sum, user) => {
+    // Calculate revenue based on plan and usage
+    const planRevenue = user.plan === "legacy" ? 19.99 : user.plan === "whisper" ? 9.99 : 0
+    const additionalCards = Math.max(0, user.usedCards - user.freeCards)
+    return sum + planRevenue + additionalCards * 4.99
+  }, 0)
+
+  // Generate recent activity from real user data
+  const recentActivity: AdminActivity[] = realUsers
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 10)
+    .map((user) => ({
+      user: user.email,
+      description: "New user signed up",
+      timestamp: new Date(user.createdAt).toLocaleDateString(),
+    }))
 
   return {
-    users: mockUsers,
-    mailedCards: mockMailedCards,
+    users: adminUsers,
+    mailedCards: [], // Will be populated when card production is implemented
     stats: {
-      totalUsers: adminData.totalUsers,
-      totalCardsSent: adminData.totalCardsSent,
-      monthlyRevenue: adminData.revenue,
+      totalUsers,
+      totalCardsSent,
+      monthlyRevenue,
     },
-    activity: adminData.recentActivity,
+    activity: recentActivity,
   }
 }

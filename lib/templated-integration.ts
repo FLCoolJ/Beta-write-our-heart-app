@@ -43,7 +43,12 @@ class TemplatedIntegration {
     return this.config
   }
 
-  async generateCard(request: TemplatedCardRequest): Promise<TemplatedResponse> {
+  async generateCard(
+    request: TemplatedCardRequest,
+    userId?: string,
+    recipientName?: string,
+    occasion?: string,
+  ): Promise<TemplatedResponse> {
     try {
       const config = this.getConfig()
 
@@ -58,6 +63,12 @@ class TemplatedIntegration {
         },
         format: "pdf",
         webhook_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/templated/webhook`,
+        metadata: {
+          userId,
+          recipientName,
+          occasion,
+          timestamp: new Date().toISOString(),
+        },
       }
 
       const response = await fetch(`${config.baseUrl}/render`, {

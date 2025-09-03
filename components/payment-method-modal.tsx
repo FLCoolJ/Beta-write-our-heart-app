@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CreditCard, Plus, Trash2, Star, AlertTriangle } from "lucide-react"
+import { CreditCard, Plus, Trash2, Star, AlertTriangle, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
 interface PaymentMethod {
   id: string
@@ -26,27 +27,39 @@ interface PaymentMethodModalProps {
 
 export function PaymentMethodModal({ isOpen, onClose, user, onUpdate }: PaymentMethodModalProps) {
   const [isLoading, setIsLoading] = useState(false)
-  const [showAddCard, setShowAddCard] = useState(false)
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
+  const [isLoadingMethods, setIsLoadingMethods] = useState(true)
 
-  // Mock payment methods - in production, fetch from Stripe
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
-    {
-      id: "pm_1234567890",
-      type: "visa",
-      last4: "4242",
-      expiryMonth: 12,
-      expiryYear: 2025,
-      isDefault: true,
-    },
-    {
-      id: "pm_0987654321",
-      type: "mastercard",
-      last4: "5555",
-      expiryMonth: 8,
-      expiryYear: 2026,
-      isDefault: false,
-    },
-  ])
+  useEffect(() => {
+    if (isOpen && user?.customerId) {
+      fetchPaymentMethods()
+    }
+  }, [isOpen, user?.customerId])
+
+  const fetchPaymentMethods = async () => {
+    if (!user?.customerId) {
+      setIsLoadingMethods(false)
+      return
+    }
+
+    try {
+      setIsLoadingMethods(true)
+      const response = await fetch(`/api/stripe/payment-methods?customerId=${user.customerId}`)
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch payment methods")
+      }
+
+      const data = await response.json()
+      setPaymentMethods(data.paymentMethods || [])
+    } catch (error) {
+      console.error("Error fetching payment methods:", error)
+      toast.error("Failed to load payment methods")
+      setPaymentMethods([])
+    } finally {
+      setIsLoadingMethods(false)
+    }
+  }
 
   const getCardIcon = (type: string) => {
     const icons = {
@@ -69,9 +82,29 @@ export function PaymentMethodModal({ isOpen, onClose, user, onUpdate }: PaymentM
   }
 
   const handleSetDefault = async (paymentMethodId: string) => {
+    if (!user?.customerId) {
+      toast.error("Customer ID not found")
+      return
+    }
+
     setIsLoading(true)
     try {
-      // In production, call Stripe API to set default payment method
+      const response = await fetch("/api/stripe/set-default-payment-method", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customerId: user.customerId,
+          paymentMethodId,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to set default payment method")
+      }
+
+      // Update local state
       const updatedMethods = paymentMethods.map((pm) => ({
         ...pm,
         isDefault: pm.id === paymentMethodId,
@@ -85,49 +118,121 @@ export function PaymentMethodModal({ isOpen, onClose, user, onUpdate }: PaymentM
       }
       onUpdate(updatedUser)
 
-      alert("Default payment method updated successfully!")
+      toast.success("Default payment method updated successfully!")
     } catch (error) {
       console.error("Error setting default payment method:", error)
-      alert("Failed to update default payment method. Please try again.")
+      toast.error("Failed to update default payment method. Please try again.")
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleRemoveCard = async (paymentMethodId: string) => {
-    if (!confirm("Are you sure you want to remove this payment method?")) {
+    const cardToRemove = paymentMethods.find((pm) => pm.id === paymentMethodId)
+    if (cardToRemove?.isDefault && paymentMethods.length > 1) {
+      toast.error("You cannot remove your default payment method. Please set another card as default first.")
       return
     }
 
-    const cardToRemove = paymentMethods.find((pm) => pm.id === paymentMethodId)
-    if (cardToRemove?.isDefault && paymentMethods.length > 1) {
-      alert("You cannot remove your default payment method. Please set another card as default first.")
+    if (!confirm("Are you sure you want to remove this payment method?")) {
       return
     }
 
     setIsLoading(true)
     try {
-      // In production, call Stripe API to detach payment method
+      const response = await fetch("/api/stripe/detach-payment-method", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          paymentMethodId,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to remove payment method")
+      }
+
+      // Update local state
       const updatedMethods = paymentMethods.filter((pm) => pm.id !== paymentMethodId)
       setPaymentMethods(updatedMethods)
 
-      alert("Payment method removed successfully!")
+      toast.success("Payment method removed successfully!")
     } catch (error) {
       console.error("Error removing payment method:", error)
-      alert("Failed to remove payment method. Please try again.")
+      toast.error("Failed to remove payment method. Please try again.")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleAddCard = () => {
-    // In production, integrate with Stripe Elements or redirect to Stripe Customer Portal
-    alert("This would open Stripe payment method setup. For demo purposes, this is not implemented.")
+  const handleAddCard = async () => {
+    if (!user?.customerId) {
+      toast.error("Customer ID not found")
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      const response = await fetch("/api/stripe/create-setup-intent", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customerId: user.customerId,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to create setup intent")
+      }
+
+      const { clientSecret } = await response.json()
+
+      // Redirect to payment method setup page with client secret
+      const setupUrl = `/setup-payment-method?setup_intent_client_secret=${clientSecret}`
+      window.location.href = setupUrl
+    } catch (error) {
+      console.error("Error creating setup intent:", error)
+      toast.error("Failed to setup payment method. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const openStripePortal = () => {
-    // In production, redirect to Stripe Customer Portal
-    alert("This would redirect to Stripe Customer Portal for full payment management.")
+  const openStripePortal = async () => {
+    if (!user?.customerId) {
+      toast.error("Customer ID not found")
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      const response = await fetch("/api/stripe/create-portal-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customerId: user.customerId,
+          returnUrl: window.location.href,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to create portal session")
+      }
+
+      const { url } = await response.json()
+      window.location.href = url
+    } catch (error) {
+      console.error("Error creating portal session:", error)
+      toast.error("Failed to open billing portal. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -150,8 +255,8 @@ export function PaymentMethodModal({ isOpen, onClose, user, onUpdate }: PaymentM
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium">{user.userType === "legacy" ? "Legacy Beta Plan" : "Whisper Beta Plan"}</p>
-                  <p className="text-sm text-gray-600">${user.userType === "legacy" ? "25.99" : "8.99"}/month</p>
+                  <p className="font-medium">{user.plan === "legacy" ? "Legacy Beta Plan" : "Whisper Beta Plan"}</p>
+                  <p className="text-sm text-gray-600">${user.plan === "legacy" ? "19.99" : "9.99"}/month</p>
                   <p className="text-xs text-green-600 mt-1">✓ Beta pricing locked in</p>
                 </div>
                 <Badge className="bg-green-100 text-green-800">Active</Badge>
@@ -163,18 +268,28 @@ export function PaymentMethodModal({ isOpen, onClose, user, onUpdate }: PaymentM
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium">Saved Payment Methods</h3>
-              <Button onClick={handleAddCard} size="sm" className="flex items-center gap-2">
-                <Plus className="w-4 h-4" />
+              <Button onClick={handleAddCard} size="sm" className="flex items-center gap-2" disabled={isLoading}>
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 Add Card
               </Button>
             </div>
 
-            {paymentMethods.length === 0 ? (
+            {isLoadingMethods ? (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin text-gray-400" />
+                  <p className="text-gray-600">Loading payment methods...</p>
+                </CardContent>
+              </Card>
+            ) : paymentMethods.length === 0 ? (
               <Card>
                 <CardContent className="text-center py-8">
                   <CreditCard className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                   <p className="text-gray-600 mb-4">No payment methods saved</p>
-                  <Button onClick={handleAddCard}>Add Your First Card</Button>
+                  <Button onClick={handleAddCard} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    Add Your First Card
+                  </Button>
                 </CardContent>
               </Card>
             ) : (
@@ -211,7 +326,7 @@ export function PaymentMethodModal({ isOpen, onClose, user, onUpdate }: PaymentM
                               onClick={() => handleSetDefault(method.id)}
                               disabled={isLoading}
                             >
-                              Set Default
+                              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Set Default"}
                             </Button>
                           )}
                           <Button
@@ -221,7 +336,7 @@ export function PaymentMethodModal({ isOpen, onClose, user, onUpdate }: PaymentM
                             disabled={isLoading || (method.isDefault && paymentMethods.length === 1)}
                             className="text-red-600 hover:text-red-700"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                           </Button>
                         </div>
                       </div>
@@ -245,7 +360,8 @@ export function PaymentMethodModal({ isOpen, onClose, user, onUpdate }: PaymentM
 
           {/* Stripe Portal Link */}
           <div className="border-t pt-4">
-            <Button variant="outline" onClick={openStripePortal} className="w-full bg-transparent">
+            <Button variant="outline" onClick={openStripePortal} className="w-full bg-transparent" disabled={isLoading}>
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Manage Billing in Stripe Portal
             </Button>
             <p className="text-xs text-gray-500 text-center mt-2">

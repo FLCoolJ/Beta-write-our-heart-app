@@ -23,26 +23,12 @@ export async function sendEmail(emailData: EmailData): Promise<{ success: boolea
 
     return { success: true }
   } catch (error) {
-    console.error("Email sending error:", error)
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",
     }
   }
 }
-
-// A mock email sending function
-export const sendWelcomeEmailMock = async (email: string, name: string) => {
-  console.log(`--- Sending Welcome Email ---`);
-  console.log(`To: ${email}`);
-  console.log(`Name: ${name}`);
-  console.log(`Subject: Welcome to Write Our Heart!`);
-  console.log(`Body: Hi ${name}, thank you for joining us.`);
-  console.log(`-----------------------------`);
-  // In a real app, you would use a service like Brevo, SendGrid, etc.
-  // e.g., await brevo.send({ to: email, subject: 'Welcome', ... })
-  return { success: true, messageId: `mock_${Date.now()}` };
-};
 
 export async function sendWelcomeEmail(
   userEmail: string,
@@ -63,8 +49,7 @@ export async function sendWelcomeEmail(
     from: process.env.FROM_EMAIL || "noreply@writeourheart.com",
   }
 
-  // Use the mock function for demonstration purposes
-  return await sendWelcomeEmailMock(userEmail, userName);
+  return await sendEmail(welcomeEmailData)
 }
 
 export async function sendEmailWithFallback(emailData: EmailData): Promise<{ success: boolean; error?: string }> {
@@ -74,9 +59,6 @@ export async function sendEmailWithFallback(emailData: EmailData): Promise<{ suc
   if (primaryResult.success) {
     return primaryResult
   }
-
-  // If primary fails, log the error and return graceful failure
-  console.error("Primary email service failed:", primaryResult.error)
 
   return {
     success: false,
@@ -95,10 +77,6 @@ export async function sendNotificationEmail(emailData: EmailData): Promise<boole
 
     return result.success
   } catch (error) {
-    console.error("Failed to send notification email:", error)
     return false
   }
 }
-
-// Exporting the mock function as a default export for demonstration
-export { sendWelcomeEmailMock as default };

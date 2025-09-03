@@ -1,4 +1,3 @@
-// More secure email system with rate limiting and monitoring
 interface EmailAttempt {
   timestamp: number
   ip?: string
@@ -45,7 +44,6 @@ class SecureEmailService {
   async sendSecureEmail(emailData: EmailData): Promise<{ success: boolean; error?: string }> {
     // Rate limiting check
     if (this.isRateLimited()) {
-      console.error("Email rate limit exceeded")
       return { success: false, error: "Rate limit exceeded" }
     }
 
@@ -54,7 +52,6 @@ class SecureEmailService {
     const fromName = process.env.FROM_NAME || "Write Our Heart"
 
     if (!apiKey) {
-      console.error("BREVO_API_KEY not configured")
       this.logAttempt(emailData.to, false)
       return { success: false, error: "Email service not configured" }
     }
@@ -67,7 +64,6 @@ class SecureEmailService {
           "Content-Type": "application/json",
           "api-key": apiKey,
           "User-Agent": "WriteOurHeart/1.0",
-          // Add request ID for tracking
           "X-Request-ID": `woh-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         },
         body: JSON.stringify({
@@ -83,7 +79,6 @@ class SecureEmailService {
           subject: emailData.subject,
           htmlContent: emailData.html,
           textContent: emailData.text || emailData.html.replace(/<[^>]*>/g, ""),
-          // Add tracking and security headers
           headers: {
             "X-Mailer": "WriteOurHeart-v1.0",
             "X-Priority": "3",
@@ -93,17 +88,14 @@ class SecureEmailService {
 
       if (!response.ok) {
         const error = await response.text()
-        console.error("Brevo API error:", response.status, error)
         this.logAttempt(emailData.to, false)
         return { success: false, error: `Email service error: ${response.status}` }
       }
 
       const result = await response.json()
-      console.log("Email sent successfully to:", emailData.to, "Message ID:", result.messageId)
       this.logAttempt(emailData.to, true)
       return { success: true }
     } catch (error) {
-      console.error("Error sending email:", error)
       this.logAttempt(emailData.to, false)
       return { success: false, error: error instanceof Error ? error.message : "Unknown error" }
     }
@@ -125,18 +117,3 @@ class SecureEmailService {
 }
 
 export const secureEmailService = new SecureEmailService()
-
-// A mock secure email sending function
-const mockSendEmail = async (params: { to: string; subject: string; html: string; }) => {
-  const { to, subject, html } = params;
-  console.log(`--- Sending Secure Email ---`);
-  console.log(`To: ${to}`);
-  console.log(`Subject: ${subject}`);
-  console.log(`Body: ${html}`);
-  console.log(`----------------------------`);
-  // This would use a secure, transactional email service.
-  return { success: true, message: "Email sent securely." };
-};
-
-// Exporting it as a named export to fix deployment issues.
-export { mockSendEmail as default };

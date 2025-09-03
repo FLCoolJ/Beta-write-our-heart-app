@@ -9,22 +9,12 @@ function toBase64Url(str: string): string {
 
 export async function GET() {
   try {
-    console.log("=== Starting Canva Auth URL Generation ===")
-
     cleanupExpiredPkce()
 
     // Check environment variables
     const clientId = process.env.NEXT_PUBLIC_CANVA_CLIENT_ID
     const appUrl = process.env.NEXT_PUBLIC_APP_URL
     const clientSecret = process.env.CANVA_CLIENT_SECRET
-
-    console.log("Environment variables:", {
-      hasClientId: !!clientId,
-      hasAppUrl: !!appUrl,
-      hasClientSecret: !!clientSecret,
-      clientId: clientId?.substring(0, 15) + "...",
-      appUrl,
-    })
 
     if (!clientId || !appUrl || !clientSecret) {
       return NextResponse.json(
@@ -41,17 +31,9 @@ export async function GET() {
     }
 
     // Generate PKCE parameters
-    console.log("Generating PKCE parameters...")
-
     const codeVerifier = toBase64Url(crypto.randomBytes(96).toString("base64"))
     const codeChallenge = toBase64Url(crypto.createHash("sha256").update(codeVerifier).digest("base64"))
     const state = toBase64Url(crypto.randomBytes(32).toString("base64"))
-
-    console.log("PKCE generated:", {
-      codeVerifierLength: codeVerifier.length,
-      codeChallengeLength: codeChallenge.length,
-      stateLength: state.length,
-    })
 
     // Store code verifier using shared storage
     storePkceData(state, codeVerifier)
@@ -70,13 +52,6 @@ export async function GET() {
       state: state,
     }).toString()}`
 
-    console.log("Auth URL generated successfully:", {
-      redirectUri,
-      scopes,
-      urlLength: authUrl.length,
-      state: state.substring(0, 10) + "...",
-    })
-
     return NextResponse.json({
       authUrl,
       debug: {
@@ -86,10 +61,6 @@ export async function GET() {
       },
     })
   } catch (error) {
-    console.error("=== Auth URL Generation Failed ===")
-    console.error("Error:", error)
-    console.error("Stack:", error.stack)
-
     return NextResponse.json(
       {
         error: "Internal server error",
@@ -103,16 +74,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("=== Starting Token Exchange ===")
-
     const { code, state } = await request.json()
-
-    console.log("Token exchange request:", {
-      hasCode: !!code,
-      hasState: !!state,
-      codeLength: code?.length,
-      stateLength: state?.length,
-    })
 
     if (!code || !state) {
       return NextResponse.json({ error: "Missing code or state" }, { status: 400 })
@@ -130,10 +92,6 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       )
     }
-
-    console.log("Retrieved code verifier:", {
-      codeVerifierLength: codeVerifier.length,
-    })
 
     // Exchange for token
     const tokenResponse = await fetch("https://api.canva.com/rest/v1/oauth/token", {
@@ -153,15 +111,8 @@ export async function POST(request: NextRequest) {
       }),
     })
 
-    console.log("Token response:", {
-      ok: tokenResponse.ok,
-      status: tokenResponse.status,
-      statusText: tokenResponse.statusText,
-    })
-
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text()
-      console.error("Token exchange failed:", errorText)
       return NextResponse.json(
         {
           error: "Token exchange failed",
@@ -173,15 +124,9 @@ export async function POST(request: NextRequest) {
     }
 
     const tokenData = await tokenResponse.json()
-    console.log("Token exchange successful:", {
-      hasAccessToken: !!tokenData.access_token,
-      hasRefreshToken: !!tokenData.refresh_token,
-      tokenType: tokenData.token_type,
-    })
 
     return NextResponse.json(tokenData)
   } catch (error) {
-    console.error("Token exchange error:", error)
     return NextResponse.json(
       {
         error: "Token exchange failed",

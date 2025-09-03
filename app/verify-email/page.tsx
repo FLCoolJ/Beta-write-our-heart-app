@@ -79,6 +79,31 @@ export default function VerifyEmailPage() {
       const updatedUser = { ...user, isVerified: true }
       localStorage.setItem("userData", JSON.stringify(updatedUser))
 
+      if (user.referralCode) {
+        try {
+          const referralResponse = await fetch("/api/process-referral", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              referralCode: user.referralCode,
+              newUserEmail: user.email,
+            }),
+          })
+
+          if (referralResponse.ok) {
+            toast({
+              title: "Referral Bonus!",
+              description: "You and your friend both received 2 free cards! 🎉",
+            })
+          }
+        } catch (referralError) {
+          // Don't fail verification if referral processing fails
+          console.error("Referral processing failed:", referralError)
+        }
+      }
+
       // Set authentication state
       localStorage.setItem("isAuthenticated", "true")
       localStorage.setItem("authToken", `token_${Date.now()}`)

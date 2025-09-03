@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Palette, Send, Eye, Heart, Gift } from "lucide-react"
+import { toast } from "sonner"
 
 export default function CardProductionPage() {
   const router = useRouter()
@@ -75,26 +76,20 @@ export default function CardProductionPage() {
     const selectedTemplateData = templates.find((t) => t.id === selectedTemplate)
     const selectedOccasionData = occasions.find((o) => o.value === selectedOccasion)
 
-    alert(
-      `Card Preview:\n\nTemplate: ${selectedTemplateData?.name}\nOccasion: ${selectedOccasionData?.label || "Not selected"}\nRecipient: ${recipientName || "Not specified"}\nMessage: ${customMessage || "No custom message"}\n\nThis would show a visual preview in production.`,
-    )
+    toast.info("Card Preview", {
+      description: `Template: ${selectedTemplateData?.name}, Occasion: ${selectedOccasionData?.label || "Not selected"}, Recipient: ${recipientName || "Not specified"}`,
+    })
   }
 
   const handleCreateCard = () => {
     if (!recipientName || !selectedOccasion || !customMessage) {
-      alert("Please fill in all required fields before creating your card.")
+      toast.error("Please fill in all required fields before creating your card.")
       return
     }
 
-    // In production, this would:
-    // 1. Generate the card using AI/templates
-    // 2. Create a preview for user approval
-    // 3. Process payment if needed
-    // 4. Queue for printing and mailing
-
-    alert(
-      `Card created successfully! 🎉\n\nYour personalized card for ${recipientName} is being prepared. You'll receive an email confirmation shortly with tracking information.`,
-    )
+    toast.success("Card Created!", {
+      description: `Your personalized card for ${recipientName} is being prepared. You'll receive an email confirmation shortly.`,
+    })
 
     // Reset form
     setRecipientName("")
