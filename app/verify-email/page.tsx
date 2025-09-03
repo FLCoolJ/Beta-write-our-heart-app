@@ -47,44 +47,59 @@ export default function VerifyEmailPage() {
       return
     }
 
+    if (verificationCode.length !== 6) {
+      setError("Please enter a valid 6-digit code")
+      return
+    }
+
     setIsLoading(true)
     setError("")
     setSuccess("")
 
     try {
-      // Simulate verification process
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const response = await fetch("/api/verify-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          code: verificationCode,
+          email: user.email,
+        }),
+      })
 
-      // For demo purposes, accept any 6-digit code
-      if (verificationCode.length === 6) {
-        // Update user verification status
-        const updatedUser = { ...user, isVerified: true }
-        localStorage.setItem("userData", JSON.stringify(updatedUser))
+      const result = await response.json()
 
-        // Set authentication state
-        localStorage.setItem("isAuthenticated", "true")
-        localStorage.setItem("authToken", `token_${Date.now()}`)
-        localStorage.setItem(
-          "userSession",
-          JSON.stringify({
-            userId: user.email,
-            loginTime: new Date().toISOString(),
-          }),
-        )
-
-        setSuccess("Email verified successfully! Redirecting to your dashboard...")
-
-        toast({
-          title: "Email Verified!",
-          description: "Welcome to Write Our Heart! Let's start adding your hearts.",
-        })
-
-        setTimeout(() => {
-          router.push("/my-hearts")
-        }, 2000)
-      } else {
-        setError("Invalid verification code. Please check your email and try again.")
+      if (!response.ok) {
+        setError(result.error || "Verification failed. Please try again.")
+        return
       }
+
+      // Update user verification status
+      const updatedUser = { ...user, isVerified: true }
+      localStorage.setItem("userData", JSON.stringify(updatedUser))
+
+      // Set authentication state
+      localStorage.setItem("isAuthenticated", "true")
+      localStorage.setItem("authToken", `token_${Date.now()}`)
+      localStorage.setItem(
+        "userSession",
+        JSON.stringify({
+          userId: user.email,
+          loginTime: new Date().toISOString(),
+        }),
+      )
+
+      setSuccess("Email verified successfully! Redirecting to your dashboard...")
+
+      toast({
+        title: "Email Verified!",
+        description: "Welcome to Write Our Heart! Let's start adding your hearts.",
+      })
+
+      setTimeout(() => {
+        router.push("/my-hearts")
+      }, 2000)
     } catch (error) {
       console.error("Verification error:", error)
       setError("Something went wrong. Please try again.")
@@ -98,8 +113,23 @@ export default function VerifyEmailPage() {
     setError("")
 
     try {
-      // Simulate resending verification email
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      const response = await fetch("/api/send-verification-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: user.email,
+          firstName: user.firstName,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setError(result.error || "Failed to resend verification email. Please try again.")
+        return
+      }
 
       toast({
         title: "Verification email sent!",
@@ -179,7 +209,8 @@ export default function VerifyEmailPage() {
                   placeholder="Enter 6-digit code"
                   value={verificationCode}
                   onChange={(e) => {
-                    setVerificationCode(e.target.value)
+                    const value = e.target.value.replace(/\D/g, "").slice(0, 6)
+                    setVerificationCode(value)
                     if (error) setError("")
                   }}
                   className="text-center text-lg tracking-widest border-yellow-200 focus:border-yellow-400"
@@ -187,7 +218,7 @@ export default function VerifyEmailPage() {
                   required
                   disabled={isLoading}
                 />
-                <p className="text-xs text-gray-500 mt-1">For demo purposes, enter any 6-digit code</p>
+                <p className="text-xs text-gray-500 mt-1">Check your email for the 6-digit verification code</p>
               </div>
 
               <Button
