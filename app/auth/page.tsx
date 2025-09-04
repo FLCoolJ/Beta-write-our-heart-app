@@ -96,10 +96,28 @@ export default function AuthPage() {
 
     try {
       if (mode === "signin") {
-        // Simulate account creation
-        await new Promise((resolve) => setTimeout(resolve, 2000))
+        const response = await fetch("/api/signup", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            password: formData.password,
+            referralCode: referralCode,
+          }),
+        })
 
-        // Store user data in localStorage
+        const data = await response.json()
+
+        if (!response.ok) {
+          setError(data.error || "Failed to create account")
+          return
+        }
+
+        // Store user data in localStorage for frontend use
         const userData = {
           email: formData.email,
           firstName: formData.firstName,
@@ -163,7 +181,6 @@ export default function AuthPage() {
         }
       }
     } catch (error) {
-      console.error("Auth error:", error)
       setError("Something went wrong. Please try again.")
     } finally {
       setIsLoading(false)

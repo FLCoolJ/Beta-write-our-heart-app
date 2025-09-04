@@ -138,6 +138,17 @@ export default function VerifyEmailPage() {
     setError("")
 
     try {
+      const testResponse = await fetch("/api/test-email-service", {
+        method: "POST",
+      })
+
+      const testResult = await testResponse.json()
+
+      if (!testResult.success) {
+        setError(`Email service error: ${testResult.error}. Please contact support.`)
+        return
+      }
+
       const response = await fetch("/api/send-verification-email", {
         method: "POST",
         headers: {
