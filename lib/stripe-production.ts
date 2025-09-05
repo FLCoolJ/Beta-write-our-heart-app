@@ -4,11 +4,16 @@ let stripeInstance: Stripe | null = null
 
 const getStripe = (): Stripe => {
   if (!stripeInstance) {
-    if (!process.env.STRIPE_SECRET_KEY) {
+    if (typeof window !== "undefined") {
+      throw new Error("Stripe should not be initialized on the client side")
+    }
+
+    const secretKey = process.env.STRIPE_SECRET_KEY
+    if (!secretKey) {
       throw new Error("STRIPE_SECRET_KEY is not set in environment variables")
     }
 
-    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    stripeInstance = new Stripe(secretKey, {
       apiVersion: "2024-06-20",
       typescript: true,
     })
@@ -19,7 +24,6 @@ const getStripe = (): Stripe => {
 
 export { getStripe }
 export const stripe = getStripe
-export default getStripe
 
 export const getStripeCustomerByEmail = async (email: string) => {
   const stripe = getStripe()

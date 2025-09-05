@@ -7,9 +7,16 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Starting signup process for:", email)
 
-    const supabase = await createClient()
+    let supabase
+    try {
+      supabase = await createClient()
+      console.log("[v0] Supabase client created successfully")
+    } catch (clientError) {
+      console.error("[v0] Failed to create Supabase client:", clientError)
+      return NextResponse.json({ error: "Database connection failed" }, { status: 500 })
+    }
 
-    // Check if user already exists
+    console.log("[v0] Checking if user exists...")
     const { data: existingUser, error: checkError } = await supabase
       .from("users")
       .select("id")
@@ -17,8 +24,13 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (checkError && checkError.code !== "PGRST116") {
-      console.error("[v0] Database check error:", checkError)
-      return NextResponse.json({ error: "Database error" }, { status: 500 })
+      console.error("[v0] Database check error details:", {
+        message: checkError.message,
+        code: checkError.code,
+        details: checkError.details,
+        hint: checkError.hint,
+      })
+      return NextResponse.json({ error: `Database check failed: ${checkError.message}` }, { status: 500 })
     }
 
     if (existingUser) {
@@ -32,7 +44,6 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Creating user record...")
 
-    // Create user record with only fields that exist in schema
     const { data: user, error: userError } = await supabase
       .from("users")
       .insert({
@@ -45,9 +56,16 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (userError) {
-      console.error("[v0] User creation error:", userError)
+      console.error("[v0] User creation error details:", {
+        message: userError.message,
+        code: userError.code,
+        details: userError.details,
+        hint: userError.hint,
+      })
       return NextResponse.json({ error: `Failed to create user: ${userError.message}` }, { status: 500 })
     }
+
+    console.log("[v0] User created with ID:", user.id)
 
     const { error: codeError } = await supabase.from("verification_codes").insert({
       user_id: user.id,
@@ -56,8 +74,13 @@ export async function POST(request: NextRequest) {
     })
 
     if (codeError) {
-      console.error("[v0] Verification code creation error:", codeError)
-      return NextResponse.json({ error: "Failed to create verification code" }, { status: 500 })
+      console.error("[v0] Verification code creation error details:", {
+        message: codeError.message,
+        code: codeError.code,
+        details: codeError.details,
+        hint: codeError.hint,
+      })
+      return NextResponse.json({ error: `Failed to create verification code: ${codeError.message}` }, { status: 500 })
     }
 
     console.log("[v0] User created successfully, sending verification email...")
