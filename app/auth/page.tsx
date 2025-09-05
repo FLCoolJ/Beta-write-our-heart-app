@@ -90,58 +90,56 @@ export default function AuthPage() {
 
     try {
       if (mode === "signin") {
-        const response = await fetch("/api/user/create", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            data: {
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+              referral_code: referralCode,
+            },
           },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            referralCode,
-          }),
         })
 
-        const data = await response.json()
-
-        if (!response.ok) {
-          setError(data.error || "Failed to create account")
+        if (signUpError) {
+          setError(signUpError.message)
           return
         }
 
-        setSuccess("Account created successfully! Please check your email to verify your account.")
+        setSuccess("Account created! Please check your email to verify your account.")
 
         setTimeout(() => {
           router.push("/verify-email")
         }, 2000)
       } else {
-        const response = await fetch("/api/user/login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-          }),
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
         })
 
-        const data = await response.json()
-
-        if (!response.ok) {
-          setError(data.error || "Invalid email or password")
+        if (signInError) {
+          setError(signInError.message)
           return
         }
 
         setSuccess("Welcome back! Redirecting...")
 
+        const { data: profile } = await supabase
+          .from("users")
+          .select("subscription_status")
+          .eq("id", data.user.id)
+          .single()
+
+        const hasSubscription = profile?.subscription_status === "active"
+
         setTimeout(() => {
-          router.push(data.redirectTo || "/my-hearts")
+          router.push(hasSubscription ? "/my-hearts" : "/select-plan")
         }, 1500)
       }
     } catch (error) {
+      console.error("Auth error:", error)
       setError("Something went wrong. Please try again.")
     } finally {
       setIsLoading(false)
