@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, firstName, lastName, referralCode } = await request.json()
+    const { email, password, firstName, lastName } = await request.json()
 
     console.log("[v0] Starting signup process for:", email)
 
@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
         email,
         first_name: firstName,
         last_name: lastName,
-        referral_code: referralCode,
       })
       .select()
       .single()
