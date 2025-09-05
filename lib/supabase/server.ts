@@ -26,3 +26,7 @@ export async function createServerSupabaseClient() {
 export async function createServerClient() {
   return createServerSupabaseClient()
 }
+
+export const createClient = createServerClient
+
+export default createServerClient

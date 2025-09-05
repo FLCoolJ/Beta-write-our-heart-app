@@ -90,52 +90,54 @@ export default function AuthPage() {
 
     try {
       if (mode === "signin") {
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            emailRedirectTo: `https://beta.writeourheart.com/auth/callback`,
-            data: {
-              first_name: formData.firstName,
-              last_name: formData.lastName,
-              referral_code: referralCode,
-            },
-          },
+        const response = await fetch("/api/auth/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            referralCode: referralCode,
+          }),
         })
 
-        if (signUpError) {
-          setError(signUpError.message)
+        const result = await response.json()
+
+        if (!response.ok) {
+          setError(result.error || "Signup failed")
           return
         }
 
-        setSuccess("Account created! Please check your email to verify your account.")
+        setSuccess("Account created! Check your email for a verification code.")
+
+        // Store email for verification page
+        localStorage.setItem("verificationEmail", formData.email)
 
         setTimeout(() => {
           router.push("/verify-email")
         }, 2000)
       } else {
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+          }),
         })
 
-        if (signInError) {
-          setError(signInError.message)
+        const result = await response.json()
+
+        if (!response.ok) {
+          setError(result.error || "Login failed")
           return
         }
 
         setSuccess("Welcome back! Redirecting...")
 
-        const { data: profile } = await supabase
-          .from("users")
-          .select("subscription_status")
-          .eq("id", data.user.id)
-          .single()
-
-        const hasSubscription = profile?.subscription_status === "active"
-
         setTimeout(() => {
-          router.push(hasSubscription ? "/my-hearts" : "/select-plan")
+          router.push(result.hasSubscription ? "/my-hearts" : "/select-plan")
         }, 1500)
       }
     } catch (error) {
