@@ -18,7 +18,7 @@ export default function SelectPlanPage() {
     try {
       // Store selected plan and redirect to payment
       localStorage.setItem("selectedPlan", planId)
-      router.push("/payment-setup")
+      router.push("/choose-plan")
     } catch (error) {
       console.error("Plan selection error:", error)
       setIsLoading(false)
