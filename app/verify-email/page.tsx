@@ -37,9 +37,9 @@ export default function VerifyEmailPage() {
       setUser(parsedUser)
     }
 
-    // If already verified, redirect to dashboard
+    // If already verified, redirect to plan selection
     if (parsedUser.isVerified && isMounted) {
-      router.push("/my-hearts")
+      router.push("/select-plan")
     }
 
     return () => {
@@ -123,15 +123,15 @@ export default function VerifyEmailPage() {
         }),
       )
 
-      setSuccess("Email verified successfully! Redirecting to your dashboard...")
+      setSuccess("Email verified successfully! Redirecting to plan selection...")
 
       toast({
         title: "Email Verified!",
-        description: "Welcome to Write Our Heart! Let's start adding your hearts.",
+        description: "Welcome to Write Our Heart! Let's choose your subscription plan.",
       })
 
       setTimeout(() => {
-        router.push("/my-hearts")
+        router.push(result.redirectTo || "/select-plan")
       }, 2000)
     } catch (error) {
       console.error("Verification error:", error)
@@ -305,6 +305,7 @@ export default function VerifyEmailPage() {
             <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <h4 className="font-medium text-yellow-800 mb-2">What's Next?</h4>
               <ul className="text-sm text-yellow-700 space-y-1">
+                <li>• Choose your subscription plan</li>
                 <li>• Add your first hearts (family & friends)</li>
                 <li>• Create beautiful personalized cards</li>
                 <li>• We'll handle printing and mailing</li>

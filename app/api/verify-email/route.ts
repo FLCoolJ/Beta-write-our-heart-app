@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getUserByEmail, verifyVerificationCode, updateUser } from "@/lib/auth-system"
+import { getUserByEmail, verifyVerificationCode, updateUser, getAllUsers } from "@/lib/auth-system"
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,7 +9,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Verification code and email are required" }, { status: 400 })
     }
 
+    console.log(`[v0] Looking for user with email: ${email.toLowerCase()}`)
+
     const user = getUserByEmail(email.toLowerCase())
+
+    console.log(`[v0] User found:`, user ? "YES" : "NO")
+    console.log(
+      `[v0] All users in server storage:`,
+      getAllUsers().map((u) => u.email),
+    )
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
@@ -31,6 +39,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: "Email verified successfully",
+      redirectTo: "/select-plan",
     })
   } catch (error) {
     console.error("[v0] Email verification error:", error)
