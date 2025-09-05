@@ -9,7 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Check, Star } from "lucide-react"
 import { StripePaymentForm } from "@/components/stripe-payment-form"
-import { getCurrentUserSubscriptionStatus } from "@/lib/auth-system"
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -20,17 +19,20 @@ export default function ChoosePlanPage() {
   const [showPayment, setShowPayment] = useState(false)
 
   useEffect(() => {
-    const checkSubscriptionStatus = async () => {
-      const { hasSubscription } = await getCurrentUserSubscriptionStatus()
-      if (hasSubscription) {
-        router.push("/my-hearts")
-        return
-      }
+    console.log("[v0] Checking subscription status on choose-plan page")
+    const hasSubscription = localStorage.getItem("hasSubscription") === "true"
+    console.log("[v0] hasSubscription from localStorage:", hasSubscription)
+
+    if (hasSubscription) {
+      console.log("[v0] User has subscription, redirecting to dashboard")
+      router.push("/my-hearts")
+      return
     }
-    checkSubscriptionStatus()
 
     const userData = localStorage.getItem("tempUser")
+    console.log("[v0] tempUser data:", userData)
     if (!userData) {
+      console.log("[v0] No tempUser found, redirecting to auth")
       router.push("/auth")
       return
     }
@@ -43,13 +45,16 @@ export default function ChoosePlanPage() {
   }
 
   const handlePaymentSuccess = (data: any) => {
+    console.log("[v0] Payment successful, setting subscription status")
     localStorage.setItem("hasSubscription", "true")
     localStorage.setItem("userPlan", selectedPlan!)
+    console.log("[v0] Set hasSubscription to true and userPlan to:", selectedPlan)
 
     const updatedUser = { ...tempUser, hasSubscription: true, subscriptionPlan: selectedPlan }
     localStorage.setItem("userData", JSON.stringify(updatedUser))
     localStorage.removeItem("tempUser")
 
+    console.log("[v0] Redirecting to dashboard")
     router.push("/my-hearts")
   }
 
