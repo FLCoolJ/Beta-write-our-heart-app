@@ -30,8 +30,10 @@ export default function AuthPage() {
   })
 
   useEffect(() => {
-    // Clear any existing authentication state when component mounts
+    let isMounted = true
+
     const clearAuthState = () => {
+      if (!isMounted) return
       localStorage.removeItem("isAuthenticated")
       localStorage.removeItem("authToken")
       localStorage.removeItem("userSession")
@@ -41,19 +43,27 @@ export default function AuthPage() {
     clearAuthState()
 
     const urlMode = searchParams.get("mode")
-    if (urlMode === "signin") {
+    if (urlMode === "signin" && isMounted) {
       setMode("signin")
     }
 
     // Check for referral code
     const ref = localStorage.getItem("referralCode")
-    if (ref) {
+    if (ref && isMounted) {
       setReferralCode(ref)
+    }
+
+    return () => {
+      isMounted = false
     }
   }, [searchParams])
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+    setFormData((prev) => {
+      if (prev[field as keyof typeof prev] === value) return prev
+      return { ...prev, [field]: value }
+    })
+
     // Clear errors when user starts typing
     if (error) setError("")
     if (success) setSuccess("")
@@ -96,19 +106,6 @@ export default function AuthPage() {
 
     try {
       if (mode === "signin") {
-        console.log("[v0] Starting signup process for:", formData.email)
-
-        console.log("[v0] Testing API connectivity first...")
-        try {
-          const testResponse = await fetch("/api/test", { method: "POST" })
-          const testData = await testResponse.json()
-          console.log("[v0] API test result:", testData)
-        } catch (testError) {
-          console.log("[v0] API test failed:", testError)
-          setError("API connection failed. Please check your internet connection.")
-          return
-        }
-
         const requestBody = {
           email: formData.email,
           firstName: formData.firstName,
@@ -117,7 +114,8 @@ export default function AuthPage() {
           referralCode: referralCode,
         }
 
-        console.log("[v0] Sending signup request to /api/signup")
+        console.log("[v0] About to make signup request to /api/signup")
+        console.log("[v0] Request body:", { ...requestBody, password: "[REDACTED]" })
 
         const response = await fetch("/api/signup", {
           method: "POST",
@@ -127,11 +125,11 @@ export default function AuthPage() {
           body: JSON.stringify(requestBody),
         })
 
-        console.log("[v0] Signup response status:", response.status)
-        console.log("[v0] Signup response headers:", Object.fromEntries(response.headers.entries()))
+        console.log("[v0] Response status:", response.status)
+        console.log("[v0] Response headers:", Object.fromEntries(response.headers.entries()))
 
         const data = await response.json()
-        console.log("[v0] Signup response data:", data)
+        console.log("[v0] Response data:", data)
 
         if (!response.ok) {
           setError(data.error || "Failed to create account")
@@ -148,12 +146,9 @@ export default function AuthPage() {
           createdAt: new Date().toISOString(),
         }
 
-        // Clear any existing auth state first
         localStorage.removeItem("isAuthenticated")
         localStorage.removeItem("authToken")
         localStorage.removeItem("userSession")
-
-        // Set new user data
         localStorage.setItem("userData", JSON.stringify(userData))
 
         setSuccess("Account created successfully! Please check your email to verify your account.")
@@ -172,7 +167,6 @@ export default function AuthPage() {
           const user = JSON.parse(userData)
           if (user.email === formData.email) {
             if (user.isVerified) {
-              // Set authentication state
               localStorage.setItem("isAuthenticated", "true")
               localStorage.setItem("authToken", `token_${Date.now()}`)
               localStorage.setItem(

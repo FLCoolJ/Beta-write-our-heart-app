@@ -23,6 +23,8 @@ export default function VerifyEmailPage() {
   const [isResending, setIsResending] = useState(false)
 
   useEffect(() => {
+    let isMounted = true
+
     // Check if user data exists
     const userData = localStorage.getItem("userData")
     if (!userData) {
@@ -31,11 +33,17 @@ export default function VerifyEmailPage() {
     }
 
     const parsedUser = JSON.parse(userData)
-    setUser(parsedUser)
+    if (isMounted) {
+      setUser(parsedUser)
+    }
 
     // If already verified, redirect to dashboard
-    if (parsedUser.isVerified) {
+    if (parsedUser.isVerified && isMounted) {
       router.push("/my-hearts")
+    }
+
+    return () => {
+      isMounted = false
     }
   }, [router])
 
@@ -246,8 +254,10 @@ export default function VerifyEmailPage() {
                   value={verificationCode}
                   onChange={(e) => {
                     const value = e.target.value.replace(/\D/g, "").slice(0, 6)
-                    setVerificationCode(value)
-                    if (error) setError("")
+                    if (value !== verificationCode) {
+                      setVerificationCode(value)
+                      if (error) setError("")
+                    }
                   }}
                   className="text-center text-lg tracking-widest border-yellow-200 focus:border-yellow-400"
                   maxLength={6}
