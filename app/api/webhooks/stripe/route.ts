@@ -4,11 +4,15 @@ import { getStripe } from "@/lib/stripe-production"
 import { createServerClient } from "@/lib/supabase/server"
 import type Stripe from "stripe"
 
-const stripe = getStripe()
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
-
 export async function POST(request: NextRequest) {
   try {
+    const stripe = getStripe()
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+
+    if (!webhookSecret) {
+      return NextResponse.json({ error: "Webhook secret not configured" }, { status: 500 })
+    }
+
     const body = await request.text()
     const headersList = headers()
     const signature = headersList.get("stripe-signature")
