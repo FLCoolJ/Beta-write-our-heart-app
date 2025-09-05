@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getUserByEmail, verifyVerificationCode, updateUser } from "@/lib/auth-system"
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,42 +9,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Verification code and email are required" }, { status: 400 })
     }
 
-    const registeredUsers = JSON.parse(process.env.REGISTERED_USERS || "[]")
-    const userIndex = registeredUsers.findIndex((u: any) => u.email === email.toLowerCase())
+    const user = getUserByEmail(email.toLowerCase())
 
-    if (userIndex === -1) {
+    if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    const user = registeredUsers[userIndex]
+    const isValidCode = verifyVerificationCode(email.toLowerCase(), code)
 
-    if (!user.verificationCode || user.verificationCode !== code) {
-      return NextResponse.json({ error: "Invalid verification code" }, { status: 400 })
+    if (!isValidCode) {
+      return NextResponse.json({ error: "Invalid or expired verification code" }, { status: 400 })
     }
 
-    if (user.verificationExpiry && Date.now() > user.verificationExpiry) {
-      return NextResponse.json({ error: "Verification code has expired. Please request a new one." }, { status: 400 })
-    }
-
-    registeredUsers[userIndex] = {
-      ...user,
+    updateUser(user.id, {
       isVerified: true,
-      verificationCode: undefined,
-      verificationExpiry: undefined,
       verifiedAt: new Date().toISOString(),
-    }
+    })
 
-    // Update the stored user data
-    process.env.REGISTERED_USERS = JSON.stringify(registeredUsers)
-
-    console.log(`Email verified successfully for: ${email}`)
+    console.log(`[v0] Email verified successfully for: ${email}`)
 
     return NextResponse.json({
       success: true,
       message: "Email verified successfully",
     })
   } catch (error) {
-    console.error("Email verification error:", error)
+    console.error("[v0] Email verification error:", error)
     return NextResponse.json({ error: "Failed to verify email" }, { status: 500 })
   }
 }
