@@ -19,14 +19,9 @@ export default function AuthCallback() {
       }
 
       if (data.session) {
-        // Check if user has completed subscription
-        const { data: userData } = await supabase
-          .from("users")
-          .select("subscription_status")
-          .eq("id", data.session.user.id)
-          .single()
+        const hasSubscription = data.session.user.user_metadata?.subscription_status === "active"
 
-        if (userData?.subscription_status === "active") {
+        if (hasSubscription) {
           router.push("/my-hearts")
         } else {
           router.push("/select-plan")

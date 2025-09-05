@@ -90,54 +90,52 @@ export default function AuthPage() {
 
     try {
       if (mode === "signin") {
-        const response = await fetch("/api/auth/signup", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            referralCode: referralCode,
-          }),
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            data: {
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+              referral_code: referralCode,
+            },
+          },
         })
 
-        const result = await response.json()
-
-        if (!response.ok) {
-          setError(result.error || "Signup failed")
+        if (error) {
+          setError(error.message)
           return
         }
 
-        setSuccess("Account created! Check your email for a verification code.")
+        setSuccess("Account created! Check your email to verify your account.")
 
-        // Store email for verification page
-        localStorage.setItem("verificationEmail", formData.email)
-
-        setTimeout(() => {
-          router.push("/verify-email")
-        }, 2000)
+        // Clear form after successful signup
+        setFormData({
+          email: "",
+          password: "",
+          confirmPassword: "",
+          firstName: "",
+          lastName: "",
+        })
       } else {
-        const response = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-          }),
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
         })
 
-        const result = await response.json()
-
-        if (!response.ok) {
-          setError(result.error || "Login failed")
+        if (error) {
+          setError(error.message)
           return
         }
 
         setSuccess("Welcome back! Redirecting...")
 
+        // Check if user has subscription in their metadata
+        const hasSubscription = data.user?.user_metadata?.subscription_status === "active"
+
         setTimeout(() => {
-          router.push(result.hasSubscription ? "/my-hearts" : "/select-plan")
+          router.push(hasSubscription ? "/my-hearts" : "/select-plan")
         }, 1500)
       }
     } catch (error) {
