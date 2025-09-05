@@ -86,6 +86,7 @@ export default function VerifyEmailPage() {
       // Update user verification status
       const updatedUser = { ...user, isVerified: true }
       localStorage.setItem("userData", JSON.stringify(updatedUser))
+      localStorage.setItem("tempUser", JSON.stringify(updatedUser))
 
       if (user.referralCode) {
         try {

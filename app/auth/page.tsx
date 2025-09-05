@@ -144,6 +144,7 @@ export default function AuthPage() {
           isVerified: false,
           referralCode: referralCode,
           createdAt: new Date().toISOString(),
+          hasSubscription: false, // Assuming this field is added to userData
         }
 
         localStorage.removeItem("isAuthenticated")
@@ -181,8 +182,7 @@ export default function AuthPage() {
 
               setTimeout(() => {
                 // Check if user has completed subscription selection
-                const userSubscription = localStorage.getItem("userSubscription")
-                if (userSubscription) {
+                if (user.hasSubscription) {
                   router.push("/my-hearts")
                 } else {
                   // New users or users without subscription should select a plan first

@@ -33,11 +33,11 @@ export default function ChoosePlanPage() {
   }
 
   const handlePaymentSuccess = (data: any) => {
-    // Clear temp user data
+    const updatedUser = { ...tempUser, hasSubscription: true, subscriptionPlan: selectedPlan }
+    localStorage.setItem("userData", JSON.stringify(updatedUser))
     localStorage.removeItem("tempUser")
 
-    // Redirect to success page
-    router.push("/confirmation")
+    router.push("/my-hearts")
   }
 
   if (!tempUser) {
