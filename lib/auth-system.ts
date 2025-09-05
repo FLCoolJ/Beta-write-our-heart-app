@@ -242,3 +242,36 @@ export function processReferralBonus(referrerCode: string, newUserEmail: string)
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" }
   }
 }
+
+export const registerUser = createUser
+
+export function generateVerificationCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString()
+}
+
+// In-memory storage for verification codes (expires after 15 minutes)
+const verificationCodes = new Map<string, { code: string; expires: number }>()
+
+export function storeVerificationCode(email: string, code: string): void {
+  const expires = Date.now() + 15 * 60 * 1000 // 15 minutes
+  verificationCodes.set(email.toLowerCase(), { code, expires })
+}
+
+export function verifyVerificationCode(email: string, code: string): boolean {
+  const stored = verificationCodes.get(email.toLowerCase())
+  if (!stored) {
+    return false
+  }
+
+  if (Date.now() > stored.expires) {
+    verificationCodes.delete(email.toLowerCase())
+    return false
+  }
+
+  if (stored.code === code) {
+    verificationCodes.delete(email.toLowerCase())
+    return true
+  }
+
+  return false
+}
