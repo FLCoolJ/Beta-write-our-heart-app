@@ -98,6 +98,17 @@ export default function AuthPage() {
       if (mode === "signin") {
         console.log("[v0] Starting signup process for:", formData.email)
 
+        console.log("[v0] Testing API connectivity first...")
+        try {
+          const testResponse = await fetch("/api/test", { method: "POST" })
+          const testData = await testResponse.json()
+          console.log("[v0] API test result:", testData)
+        } catch (testError) {
+          console.log("[v0] API test failed:", testError)
+          setError("API connection failed. Please check your internet connection.")
+          return
+        }
+
         const requestBody = {
           email: formData.email,
           firstName: formData.firstName,
@@ -117,6 +128,7 @@ export default function AuthPage() {
         })
 
         console.log("[v0] Signup response status:", response.status)
+        console.log("[v0] Signup response headers:", Object.fromEntries(response.headers.entries()))
 
         const data = await response.json()
         console.log("[v0] Signup response data:", data)
