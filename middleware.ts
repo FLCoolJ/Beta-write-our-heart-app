@@ -41,8 +41,10 @@ export async function middleware(request: NextRequest) {
     "/choose-plan",
   ]
 
-  // Check if the current path is a protected route
+  const subscriptionRequiredRoutes = ["/my-hearts", "/add-heart", "/personalize-message", "/card-production"]
+
   const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route))
+  const requiresSubscription = subscriptionRequiredRoutes.some((route) => pathname.startsWith(route))
 
   if (isProtectedRoute) {
     if (!user) {
@@ -50,13 +52,29 @@ export async function middleware(request: NextRequest) {
       url.pathname = "/auth"
       return NextResponse.redirect(url)
     }
+
+    if (requiresSubscription) {
+      const { data: userData } = await supabase
+        .from("users")
+        .select("subscription_status, subscription_plan")
+        .eq("id", user.id)
+        .single()
+
+      if (!userData || userData.subscription_status !== "active") {
+        const url = request.nextUrl.clone()
+        url.pathname = "/select-plan"
+        return NextResponse.redirect(url)
+      }
+    }
   }
 
-  // For auth pages, check if user is already authenticated
   if (pathname === "/auth" || pathname === "/verify-email") {
     if (user && pathname === "/auth") {
-      // Check if user has completed subscription
-      const { data: userData } = await supabase.from("users").select("subscription_status").eq("id", user.id).single()
+      const { data: userData } = await supabase
+        .from("users")
+        .select("subscription_status, subscription_plan")
+        .eq("id", user.id)
+        .single()
 
       const url = request.nextUrl.clone()
       if (userData?.subscription_status === "active") {
@@ -68,19 +86,19 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  if ((pathname === "/select-plan" || pathname === "/choose-plan") && user) {
+    const { data: userData } = await supabase.from("users").select("subscription_status").eq("id", user.id).single()
+
+    if (userData?.subscription_status === "active") {
+      const url = request.nextUrl.clone()
+      url.pathname = "/my-hearts"
+      return NextResponse.redirect(url)
+    }
+  }
+
   return supabaseResponse
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    "/((?!api|_next/static|_next/image|favicon.ico|public).*)",
-  ],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|public).*)"],
 }

@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Calendar, Mail, User, Settings, LogOut, Gift, Heart } from "lucide-react"
 import Link from "next/link"
 import { toast } from "@/hooks/use-toast"
+import ProtectedRoute from "@/components/protected-route"
+import { signOut } from "@/lib/auth-utils"
 
 interface HeartData {
   id: string
@@ -19,102 +21,68 @@ interface HeartData {
   totalCardsSent: number
 }
 
-export default function MyHeartsPage() {
+function MyHeartsContent() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [hearts, setHearts] = useState<HeartData[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const checkAuthAndLoadData = async () => {
+    const loadUserData = async () => {
       try {
-        // Check authentication state
-        const isAuthenticated = localStorage.getItem("isAuthenticated")
-        const authToken = localStorage.getItem("authToken")
-        const userData = localStorage.getItem("userData")
+        const response = await fetch("/api/user/profile")
+        if (response.ok) {
+          const { user: userData } = await response.json()
+          setUser(userData)
 
-        if (!isAuthenticated || !authToken || !userData) {
-          console.log("No valid authentication found, redirecting to auth")
-          router.push("/auth")
-          return
-        }
-
-        const parsedUser = JSON.parse(userData)
-
-        // Check if user is verified
-        if (!parsedUser.isVerified) {
-          console.log("User not verified, redirecting to verification")
-          router.push("/verify-email")
-          return
-        }
-
-        setUser(parsedUser)
-
-        // Load hearts from localStorage
-        const heartsData = localStorage.getItem("userHearts")
-        if (heartsData) {
-          setHearts(JSON.parse(heartsData))
-        } else {
-          // Demo hearts for new users
-          const demoHearts: HeartData[] = [
-            {
-              id: "1",
-              name: "Mom",
-              relationship: "Mother",
-              birthday: "1965-03-15",
-              address: "123 Main St, Hometown, ST 12345",
-              lastCardSent: "2024-02-14",
-              totalCardsSent: 3,
-            },
-            {
-              id: "2",
-              name: "Sarah Johnson",
-              relationship: "Best Friend",
-              birthday: "1990-07-22",
-              address: "456 Oak Ave, Friendville, ST 67890",
-              totalCardsSent: 1,
-            },
-          ]
-          setHearts(demoHearts)
-          localStorage.setItem("userHearts", JSON.stringify(demoHearts))
+          // Load hearts from localStorage for now (can be moved to database later)
+          const heartsData = localStorage.getItem("userHearts")
+          if (heartsData) {
+            setHearts(JSON.parse(heartsData))
+          } else {
+            // Demo hearts for new users
+            const demoHearts: HeartData[] = [
+              {
+                id: "1",
+                name: "Mom",
+                relationship: "Mother",
+                birthday: "1965-03-15",
+                address: "123 Main St, Hometown, ST 12345",
+                lastCardSent: "2024-02-14",
+                totalCardsSent: 3,
+              },
+              {
+                id: "2",
+                name: "Sarah Johnson",
+                relationship: "Best Friend",
+                birthday: "1990-07-22",
+                address: "456 Oak Ave, Friendville, ST 67890",
+                totalCardsSent: 1,
+              },
+            ]
+            setHearts(demoHearts)
+            localStorage.setItem("userHearts", JSON.stringify(demoHearts))
+          }
         }
       } catch (error) {
         console.error("Error loading user data:", error)
-        router.push("/auth")
       } finally {
         setIsLoading(false)
       }
     }
 
-    checkAuthAndLoadData()
-  }, [router])
+    loadUserData()
+  }, [])
 
   const handleLogout = async () => {
     try {
-      // Clear all authentication and user data
-      localStorage.removeItem("isAuthenticated")
-      localStorage.removeItem("authToken")
-      localStorage.removeItem("userSession")
-      localStorage.removeItem("userData")
-      localStorage.removeItem("userHearts")
-      localStorage.removeItem("referralCode")
-
-      // Clear session storage as well
-      sessionStorage.clear()
-
-      // Show success message
+      await signOut()
       toast({
         title: "Logged out successfully",
         description: "You've been logged out. Redirecting to home page...",
       })
-
-      // Small delay to show the toast, then redirect
-      setTimeout(() => {
-        router.push("/")
-      }, 1000)
     } catch (error) {
       console.error("Logout error:", error)
-      // Force redirect even if there's an error
       router.push("/")
     }
   }
@@ -141,11 +109,6 @@ export default function MyHeartsPage() {
     )
   }
 
-  // If no user after loading, don't render anything (redirect will happen)
-  if (!user) {
-    return null
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50">
       {/* Header */}
@@ -157,7 +120,7 @@ export default function MyHeartsPage() {
               <span className="font-bold text-yellow-600">Write Our Heart</span>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">Welcome, {user.firstName}!</span>
+              <span className="text-sm text-gray-600">Welcome, {user?.first_name}!</span>
               <Button
                 variant="outline"
                 size="sm"
@@ -189,14 +152,14 @@ export default function MyHeartsPage() {
           </div>
 
           {/* Referral Bonus Banner */}
-          {user.referralCode && (
+          {user?.free_cards_remaining > 0 && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
               <div className="flex items-center gap-2 mb-2">
                 <Gift className="w-5 h-5 text-green-600" />
-                <span className="font-medium text-green-800">Referral Bonus Active!</span>
+                <span className="font-medium text-green-800">Free Cards Available!</span>
               </div>
               <p className="text-sm text-green-700">
-                You have 2 free cards from your referral bonus. Start creating cards to use them!
+                You have {user.free_cards_remaining} free cards remaining. Start creating cards to use them!
               </p>
             </div>
           )}
@@ -384,5 +347,13 @@ export default function MyHeartsPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function MyHeartsPage() {
+  return (
+    <ProtectedRoute requiresSubscription={true}>
+      <MyHeartsContent />
+    </ProtectedRoute>
   )
 }

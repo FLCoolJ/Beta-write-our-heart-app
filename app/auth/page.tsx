@@ -36,8 +36,7 @@ export default function AuthPage() {
       setMode("signin")
     }
 
-    // Check for referral code
-    const ref = localStorage.getItem("referralCode")
+    const ref = searchParams.get("ref")
     if (ref) {
       setReferralCode(ref)
     }
@@ -91,74 +90,56 @@ export default function AuthPage() {
 
     try {
       if (mode === "signin") {
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-            data: {
-              first_name: formData.firstName,
-              last_name: formData.lastName,
-              referral_code: referralCode,
-            },
+        const response = await fetch("/api/user/create", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-        })
-
-        if (signUpError) {
-          setError(signUpError.message)
-          return
-        }
-
-        if (data.user) {
-          // Create user record in our users table
-          const { error: insertError } = await supabase.from("users").insert({
-            id: data.user.id,
+          body: JSON.stringify({
             email: formData.email,
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            referral_code: Math.random().toString(36).substring(2, 8).toUpperCase(),
-          })
-
-          if (insertError) {
-            console.error("Error creating user record:", insertError)
-          }
-
-          setSuccess("Account created successfully! Please check your email to verify your account.")
-
-          setTimeout(() => {
-            router.push("/verify-email")
-          }, 2000)
-        }
-      } else {
-        // Login flow
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
+            password: formData.password,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            referralCode,
+          }),
         })
 
-        if (signInError) {
-          setError("Invalid email or password. Please check your credentials.")
+        const data = await response.json()
+
+        if (!response.ok) {
+          setError(data.error || "Failed to create account")
           return
         }
 
-        if (data.user) {
-          // Check if user has completed subscription
-          const { data: userData } = await supabase
-            .from("users")
-            .select("subscription_status")
-            .eq("id", data.user.id)
-            .single()
+        setSuccess("Account created successfully! Please check your email to verify your account.")
 
-          setSuccess("Welcome back! Redirecting...")
+        setTimeout(() => {
+          router.push("/verify-email")
+        }, 2000)
+      } else {
+        const response = await fetch("/api/user/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+          }),
+        })
 
-          setTimeout(() => {
-            if (userData?.subscription_status === "active") {
-              router.push("/my-hearts")
-            } else {
-              router.push("/select-plan")
-            }
-          }, 1500)
+        const data = await response.json()
+
+        if (!response.ok) {
+          setError(data.error || "Invalid email or password")
+          return
         }
+
+        setSuccess("Welcome back! Redirecting...")
+
+        setTimeout(() => {
+          router.push(data.redirectTo || "/my-hearts")
+        }, 1500)
       }
     } catch (error) {
       setError("Something went wrong. Please try again.")

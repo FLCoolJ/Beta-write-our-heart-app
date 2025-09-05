@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,8 +12,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Heart, ArrowLeft, User, MapPin, Calendar, Save } from "lucide-react"
 import Link from "next/link"
 import { toast } from "@/hooks/use-toast"
+import ProtectedRoute from "@/components/protected-route"
 
-export default function AddHeartPage() {
+function AddHeartContent() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -23,21 +24,6 @@ export default function AddHeartPage() {
     address: "",
     notes: "",
   })
-
-  useEffect(() => {
-    // Check if user is logged in
-    const userData = localStorage.getItem("userData")
-    if (!userData) {
-      router.push("/auth")
-      return
-    }
-
-    const parsedUser = JSON.parse(userData)
-    if (!parsedUser.isVerified) {
-      router.push("/verify-email")
-      return
-    }
-  }, [router])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -223,5 +209,13 @@ export default function AddHeartPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function AddHeartPage() {
+  return (
+    <ProtectedRoute requiresSubscription={true}>
+      <AddHeartContent />
+    </ProtectedRoute>
   )
 }

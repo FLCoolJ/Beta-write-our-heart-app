@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Check } from "lucide-react"
@@ -12,43 +11,39 @@ export default function SelectPlanPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [user, setUser] = useState<any>(null)
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
     const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+      try {
+        const response = await fetch("/api/user/profile")
 
-      if (!session) {
+        if (!response.ok) {
+          router.push("/auth")
+          return
+        }
+
+        const { user: userData } = await response.json()
+        setUser(userData)
+
+        // Check if user already has active subscription
+        if (userData.subscription_status === "active") {
+          router.push("/my-hearts")
+        }
+      } catch (error) {
+        console.error("Auth check error:", error)
         router.push("/auth")
-        return
-      }
-
-      setUser(session.user)
-
-      // Check if user already has active subscription
-      const { data: userData } = await supabase
-        .from("users")
-        .select("subscription_status")
-        .eq("id", session.user.id)
-        .single()
-
-      if (userData?.subscription_status === "active") {
-        router.push("/my-hearts")
       }
     }
 
     checkAuth()
-  }, [router, supabase])
+  }, [router])
 
   const handlePlanSelection = async (planId: string) => {
     setIsLoading(true)
     setSelectedPlan(planId)
 
     try {
-      // Store selected plan and redirect to payment
-      localStorage.setItem("selectedPlan", planId)
+      sessionStorage.setItem("selectedPlan", planId)
       router.push("/choose-plan")
     } catch (error) {
       console.error("Plan selection error:", error)

@@ -1,14 +1,31 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getStripe } from "@/lib/stripe-production"
+import { createServerClient } from "@/lib/supabase/server"
 import { sendWelcomeEmail } from "@/lib/email-system"
 import type Stripe from "stripe"
 
 export async function POST(request: NextRequest) {
   try {
-    const { paymentMethodId, plan, userEmail, userName } = await request.json()
+    const { paymentMethodId, plan } = await request.json()
 
     if (!paymentMethodId || !plan) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    }
+
+    const supabase = createServerClient()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { data: userData, error: userError } = await supabase.from("users").select("*").eq("id", user.id).single()
+
+    if (userError || !userData) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
     // Get the correct price ID based on plan
@@ -24,8 +41,11 @@ export async function POST(request: NextRequest) {
     // Create customer
     const customer = await stripeClient.customers.create({
       payment_method: paymentMethodId,
-      email: userEmail,
-      name: userName,
+      email: userData.email,
+      name: `${userData.first_name} ${userData.last_name}`,
+      metadata: {
+        userId: user.id,
+      },
       invoice_settings: {
         default_payment_method: paymentMethodId,
       },
@@ -36,6 +56,10 @@ export async function POST(request: NextRequest) {
       customer: customer.id,
       items: [{ price: priceId }],
       default_payment_method: paymentMethodId,
+      metadata: {
+        userId: user.id,
+        plan: plan,
+      },
       expand: ["latest_invoice.payment_intent"],
     })
 
@@ -53,14 +77,28 @@ export async function POST(request: NextRequest) {
 
     // Payment successful
     if (paymentIntent.status === "succeeded") {
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({
+          subscription_plan: plan,
+          subscription_status: "active",
+          stripe_customer_id: customer.id,
+          stripe_subscription_id: subscription.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id)
+
+      if (updateError) {
+        console.error("Failed to update user subscription:", updateError)
+        // Don't fail the request, but log the error
+      }
+
       // Send welcome email (don't fail if email fails)
-      if (userEmail && userName) {
-        try {
-          await sendWelcomeEmail(userEmail, userName, plan)
-        } catch (emailError) {
-          console.error("Welcome email failed:", emailError)
-          // Continue - don't fail subscription creation due to email issues
-        }
+      try {
+        await sendWelcomeEmail(userData.email, `${userData.first_name} ${userData.last_name}`, plan)
+      } catch (emailError) {
+        console.error("Welcome email failed:", emailError)
+        // Continue - don't fail subscription creation due to email issues
       }
 
       return NextResponse.json({
