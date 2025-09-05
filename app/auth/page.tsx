@@ -94,7 +94,7 @@ export default function AuthPage() {
           email: formData.email,
           password: formData.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `https://beta.writeourheart.com/auth/callback`,
             data: {
               first_name: formData.firstName,
               last_name: formData.lastName,

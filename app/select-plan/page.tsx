@@ -5,28 +5,32 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Check } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 
 export default function SelectPlanPage() {
   const [selectedPlan, setSelectedPlan] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
   const [user, setUser] = useState<any>(null)
   const router = useRouter()
+  const supabase = createClient()
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch("/api/user/profile")
+        const {
+          data: { user: authUser },
+          error,
+        } = await supabase.auth.getUser()
 
-        if (!response.ok) {
+        if (error || !authUser) {
           router.push("/auth")
           return
         }
 
-        const { user: userData } = await response.json()
-        setUser(userData)
+        setUser(authUser)
 
-        // Check if user already has active subscription
-        if (userData.subscription_status === "active") {
+        const hasActiveSubscription = authUser.user_metadata?.subscription_status === "active"
+        if (hasActiveSubscription) {
           router.push("/my-hearts")
         }
       } catch (error) {
@@ -36,7 +40,7 @@ export default function SelectPlanPage() {
     }
 
     checkAuth()
-  }, [router])
+  }, [router, supabase])
 
   const handlePlanSelection = async (planId: string) => {
     setIsLoading(true)

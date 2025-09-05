@@ -66,21 +66,9 @@ export async function middleware(request: NextRequest) {
     }
 
     if (requiresSubscription) {
-      try {
-        const { data: userData } = await supabase
-          .from("users")
-          .select("subscription_status, subscription_plan")
-          .eq("id", user.id)
-          .single()
+      const hasActiveSubscription = user.user_metadata?.subscription_status === "active"
 
-        if (!userData || userData.subscription_status !== "active") {
-          const url = request.nextUrl.clone()
-          url.pathname = "/select-plan"
-          return NextResponse.redirect(url)
-        }
-      } catch (error) {
-        console.log("[v0] Subscription check failed:", error)
-        // Redirect to plan selection if database check fails
+      if (!hasActiveSubscription) {
         const url = request.nextUrl.clone()
         url.pathname = "/select-plan"
         return NextResponse.redirect(url)
@@ -90,42 +78,25 @@ export async function middleware(request: NextRequest) {
 
   if (pathname === "/auth" || pathname === "/verify-email") {
     if (user && pathname === "/auth") {
-      try {
-        const { data: userData } = await supabase
-          .from("users")
-          .select("subscription_status, subscription_plan")
-          .eq("id", user.id)
-          .single()
+      const hasActiveSubscription = user.user_metadata?.subscription_status === "active"
 
-        const url = request.nextUrl.clone()
-        if (userData?.subscription_status === "active") {
-          url.pathname = "/my-hearts"
-        } else {
-          url.pathname = "/select-plan"
-        }
-        return NextResponse.redirect(url)
-      } catch (error) {
-        console.log("[v0] User data lookup failed:", error)
-        // Default to plan selection if lookup fails
-        const url = request.nextUrl.clone()
+      const url = request.nextUrl.clone()
+      if (hasActiveSubscription) {
+        url.pathname = "/my-hearts"
+      } else {
         url.pathname = "/select-plan"
-        return NextResponse.redirect(url)
       }
+      return NextResponse.redirect(url)
     }
   }
 
   if ((pathname === "/select-plan" || pathname === "/choose-plan") && user) {
-    try {
-      const { data: userData } = await supabase.from("users").select("subscription_status").eq("id", user.id).single()
+    const hasActiveSubscription = user.user_metadata?.subscription_status === "active"
 
-      if (userData?.subscription_status === "active") {
-        const url = request.nextUrl.clone()
-        url.pathname = "/my-hearts"
-        return NextResponse.redirect(url)
-      }
-    } catch (error) {
-      console.log("[v0] Subscription status check failed:", error)
-      // Allow access to plan selection if check fails
+    if (hasActiveSubscription) {
+      const url = request.nextUrl.clone()
+      url.pathname = "/my-hearts"
+      return NextResponse.redirect(url)
     }
   }
 
