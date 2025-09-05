@@ -1,9 +1,9 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -16,6 +16,7 @@ import Link from "next/link"
 export default function AuthPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const supabase = createClient()
   const [mode, setMode] = useState<"login" | "signin">("login")
   const [isLoading, setIsLoading] = useState(false)
   const [referralCode, setReferralCode] = useState<string | null>(null)
@@ -30,31 +31,15 @@ export default function AuthPage() {
   })
 
   useEffect(() => {
-    let isMounted = true
-
-    const clearAuthState = () => {
-      if (!isMounted) return
-      localStorage.removeItem("isAuthenticated")
-      localStorage.removeItem("authToken")
-      localStorage.removeItem("userSession")
-      sessionStorage.clear()
-    }
-
-    clearAuthState()
-
     const urlMode = searchParams.get("mode")
-    if (urlMode === "signin" && isMounted) {
+    if (urlMode === "signin") {
       setMode("signin")
     }
 
     // Check for referral code
     const ref = localStorage.getItem("referralCode")
-    if (ref && isMounted) {
+    if (ref) {
       setReferralCode(ref)
-    }
-
-    return () => {
-      isMounted = false
     }
   }, [searchParams])
 
@@ -106,100 +91,73 @@ export default function AuthPage() {
 
     try {
       if (mode === "signin") {
-        const requestBody = {
+        const { data, error: signUpError } = await supabase.auth.signUp({
           email: formData.email,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
           password: formData.password,
-          referralCode: referralCode,
-        }
-
-        console.log("[v0] About to make signup request to /api/signup")
-        console.log("[v0] Request body:", { ...requestBody, password: "[REDACTED]" })
-
-        const response = await fetch("/api/signup", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            data: {
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+              referral_code: referralCode,
+            },
           },
-          body: JSON.stringify(requestBody),
         })
 
-        console.log("[v0] Response status:", response.status)
-        console.log("[v0] Response headers:", Object.fromEntries(response.headers.entries()))
-
-        const data = await response.json()
-        console.log("[v0] Response data:", data)
-
-        if (!response.ok) {
-          setError(data.error || "Failed to create account")
+        if (signUpError) {
+          setError(signUpError.message)
           return
         }
 
-        // Store user data in localStorage for frontend use
-        const userData = {
-          email: formData.email,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          isVerified: false,
-          referralCode: referralCode,
-          createdAt: new Date().toISOString(),
-          hasSubscription: false, // Assuming this field is added to userData
+        if (data.user) {
+          // Create user record in our users table
+          const { error: insertError } = await supabase.from("users").insert({
+            id: data.user.id,
+            email: formData.email,
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            referral_code: Math.random().toString(36).substring(2, 8).toUpperCase(),
+          })
+
+          if (insertError) {
+            console.error("Error creating user record:", insertError)
+          }
+
+          setSuccess("Account created successfully! Please check your email to verify your account.")
+
+          setTimeout(() => {
+            router.push("/verify-email")
+          }, 2000)
         }
-
-        localStorage.removeItem("isAuthenticated")
-        localStorage.removeItem("authToken")
-        localStorage.removeItem("userSession")
-        localStorage.setItem("userData", JSON.stringify(userData))
-
-        setSuccess("Account created successfully! Please check your email to verify your account.")
-
-        // Redirect to email verification after showing success message
-        setTimeout(() => {
-          router.push("/verify-email")
-        }, 2000)
       } else {
         // Login flow
-        await new Promise((resolve) => setTimeout(resolve, 1500))
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        })
 
-        // Check if user exists in localStorage
-        const userData = localStorage.getItem("userData")
-        if (userData) {
-          const user = JSON.parse(userData)
-          if (user.email === formData.email) {
-            if (user.isVerified) {
-              localStorage.setItem("isAuthenticated", "true")
-              localStorage.setItem("authToken", `token_${Date.now()}`)
-              localStorage.setItem(
-                "userSession",
-                JSON.stringify({
-                  userId: user.email,
-                  loginTime: new Date().toISOString(),
-                }),
-              )
+        if (signInError) {
+          setError("Invalid email or password. Please check your credentials.")
+          return
+        }
 
-              setSuccess("Welcome back! Redirecting to your dashboard...")
+        if (data.user) {
+          // Check if user has completed subscription
+          const { data: userData } = await supabase
+            .from("users")
+            .select("subscription_status")
+            .eq("id", data.user.id)
+            .single()
 
-              setTimeout(() => {
-                // Check if user has completed subscription selection
-                if (user.hasSubscription) {
-                  router.push("/my-hearts")
-                } else {
-                  // New users or users without subscription should select a plan first
-                  router.push("/select-plan")
-                }
-              }, 1500)
+          setSuccess("Welcome back! Redirecting...")
+
+          setTimeout(() => {
+            if (userData?.subscription_status === "active") {
+              router.push("/my-hearts")
             } else {
-              setError("Please verify your email before logging in.")
-              setTimeout(() => {
-                router.push("/verify-email")
-              }, 2000)
+              router.push("/select-plan")
             }
-          } else {
-            setError("Invalid email or password. Please check your credentials.")
-          }
-        } else {
-          setError("No account found with this email. Please create an account first.")
+          }, 1500)
         }
       }
     } catch (error) {

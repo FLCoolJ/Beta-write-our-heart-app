@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Check } from "lucide-react"
@@ -9,14 +10,37 @@ import { Check } from "lucide-react"
 export default function SelectPlanPage() {
   const [selectedPlan, setSelectedPlan] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
+  const [user, setUser] = useState<any>(null)
   const router = useRouter()
+  const supabase = createClient()
 
   useEffect(() => {
-    const userHasSubscription = localStorage.getItem("hasSubscription") === "true"
-    if (userHasSubscription) {
-      router.push("/my-hearts")
+    const checkAuth = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session) {
+        router.push("/auth")
+        return
+      }
+
+      setUser(session.user)
+
+      // Check if user already has active subscription
+      const { data: userData } = await supabase
+        .from("users")
+        .select("subscription_status")
+        .eq("id", session.user.id)
+        .single()
+
+      if (userData?.subscription_status === "active") {
+        router.push("/my-hearts")
+      }
     }
-  }, [router])
+
+    checkAuth()
+  }, [router, supabase])
 
   const handlePlanSelection = async (planId: string) => {
     setIsLoading(true)
@@ -30,6 +54,17 @@ export default function SelectPlanPage() {
       console.error("Plan selection error:", error)
       setIsLoading(false)
     }
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500 mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
