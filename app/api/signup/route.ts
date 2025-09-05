@@ -64,6 +64,10 @@ export async function POST(request: NextRequest) {
 
     // Send verification email
     console.log("[v0] Attempting to send verification email to:", email)
+    console.log("[v0] About to call Brevo API")
+    console.log("[v0] Brevo API Key:", process.env.BREVO_API_KEY ? "Present" : "Missing")
+    console.log("[v0] FROM_EMAIL:", process.env.FROM_EMAIL || "Not set")
+    console.log("[v0] FROM_NAME:", process.env.FROM_NAME || "Not set")
 
     const emailResult = await secureEmailService.sendSecureEmail({
       to: email,
@@ -73,6 +77,9 @@ export async function POST(request: NextRequest) {
     })
 
     console.log("[v0] Email send result:", emailResult)
+    console.log("[v0] Email result success:", emailResult.success)
+    console.log("[v0] Email result error:", emailResult.error)
+    console.log("[v0] Email result data:", emailResult.data)
 
     if (!emailResult.success) {
       console.log("[v0] Email failed to send:", emailResult.error)
