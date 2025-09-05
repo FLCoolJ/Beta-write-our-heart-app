@@ -180,7 +180,14 @@ export default function AuthPage() {
               setSuccess("Welcome back! Redirecting to your dashboard...")
 
               setTimeout(() => {
-                router.push("/my-hearts")
+                // Check if user has completed subscription selection
+                const userSubscription = localStorage.getItem("userSubscription")
+                if (userSubscription) {
+                  router.push("/my-hearts")
+                } else {
+                  // New users or users without subscription should select a plan first
+                  router.push("/select-plan")
+                }
               }, 1500)
             } else {
               setError("Please verify your email before logging in.")
