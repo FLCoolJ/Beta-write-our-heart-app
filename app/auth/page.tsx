@@ -96,21 +96,30 @@ export default function AuthPage() {
 
     try {
       if (mode === "signin") {
+        console.log("[v0] Starting signup process for:", formData.email)
+
+        const requestBody = {
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          password: formData.password,
+          referralCode: referralCode,
+        }
+
+        console.log("[v0] Sending signup request to /api/signup")
+
         const response = await fetch("/api/signup", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            email: formData.email,
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            password: formData.password,
-            referralCode: referralCode,
-          }),
+          body: JSON.stringify(requestBody),
         })
 
+        console.log("[v0] Signup response status:", response.status)
+
         const data = await response.json()
+        console.log("[v0] Signup response data:", data)
 
         if (!response.ok) {
           setError(data.error || "Failed to create account")
