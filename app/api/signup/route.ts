@@ -2,6 +2,10 @@ import { type NextRequest, NextResponse } from "next/server"
 import { secureEmailService } from "@/lib/secure-email-system"
 import { emailHtml } from "@/lib/email-templates"
 
+export async function GET() {
+  return NextResponse.json({ message: "Signup endpoint is working. Use POST to create an account." }, { status: 405 })
+}
+
 export async function POST(request: NextRequest) {
   console.log("[v0] Signup API route called")
 
