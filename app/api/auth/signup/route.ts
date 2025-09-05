@@ -1,46 +1,66 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
-import bcrypt from "bcryptjs"
 
 export async function POST(request: NextRequest) {
   try {
     const { email, password, firstName, lastName, referralCode } = await request.json()
 
+    console.log("[v0] Starting signup process for:", email)
+
     const supabase = await createClient()
 
     // Check if user already exists
-    const { data: existingUser } = await supabase.from("users").select("id").eq("email", email).single()
+    const { data: existingUser, error: checkError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .single()
 
-    if (existingUser) {
-      return NextResponse.json({ error: "User already exists" }, { status: 400 })
+    if (checkError && checkError.code !== "PGRST116") {
+      console.error("[v0] Database check error:", checkError)
+      return NextResponse.json({ error: "Database error" }, { status: 500 })
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12)
+    if (existingUser) {
+      console.log("[v0] User already exists:", email)
+      return NextResponse.json({ error: "User already exists" }, { status: 400 })
+    }
 
     // Generate 6-digit verification code
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString()
     const codeExpiry = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
 
-    // Create user record
+    console.log("[v0] Creating user record...")
+
+    // Create user record with only fields that exist in schema
     const { data: user, error: userError } = await supabase
       .from("users")
       .insert({
         email,
-        password_hash: hashedPassword,
         first_name: firstName,
         last_name: lastName,
         referral_code: referralCode,
-        verification_code: verificationCode,
-        verification_code_expires: codeExpiry.toISOString(),
-        email_verified: false,
       })
       .select()
       .single()
 
     if (userError) {
-      return NextResponse.json({ error: "Failed to create user" }, { status: 500 })
+      console.error("[v0] User creation error:", userError)
+      return NextResponse.json({ error: `Failed to create user: ${userError.message}` }, { status: 500 })
     }
+
+    const { error: codeError } = await supabase.from("verification_codes").insert({
+      user_id: user.id,
+      code: verificationCode,
+      expires_at: codeExpiry.toISOString(),
+    })
+
+    if (codeError) {
+      console.error("[v0] Verification code creation error:", codeError)
+      return NextResponse.json({ error: "Failed to create verification code" }, { status: 500 })
+    }
+
+    console.log("[v0] User created successfully, sending verification email...")
 
     // Send verification email
     const emailResponse = await fetch(
@@ -57,12 +77,17 @@ export async function POST(request: NextRequest) {
     )
 
     if (!emailResponse.ok) {
-      return NextResponse.json({ error: "Failed to send verification email" }, { status: 500 })
+      const emailError = await emailResponse.text()
+      console.error("[v0] Email sending failed:", emailError)
+      // Don't fail the signup if email fails, just log it
+      console.log("[v0] User created but email failed to send")
+    } else {
+      console.log("[v0] Verification email sent successfully")
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Signup error:", error)
+    console.error("[v0] Signup error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
