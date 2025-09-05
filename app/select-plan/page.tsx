@@ -1,15 +1,27 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Check } from "lucide-react"
+import { getCurrentUserSubscriptionStatus } from "@/lib/auth-system"
 
 export default function SelectPlanPage() {
   const [selectedPlan, setSelectedPlan] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    const checkSubscriptionStatus = async () => {
+      const { hasSubscription } = await getCurrentUserSubscriptionStatus()
+      if (hasSubscription) {
+        // User already has subscription, redirect to dashboard
+        router.push("/my-hearts")
+      }
+    }
+    checkSubscriptionStatus()
+  }, [router])
 
   const handlePlanSelection = async (planId: string) => {
     setIsLoading(true)

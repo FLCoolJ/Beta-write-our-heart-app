@@ -275,3 +275,38 @@ export function verifyVerificationCode(email: string, code: string): boolean {
 
   return false
 }
+
+export function hasActiveSubscription(user: User): boolean {
+  return !!(user.plan && user.subscriptionId)
+}
+
+export function setUserSubscription(
+  userId: string,
+  plan: "whisper" | "legacy",
+  subscriptionId: string,
+  customerId: string,
+): User | null {
+  const user = updateUser(userId, {
+    plan,
+    subscriptionId,
+    customerId,
+  })
+
+  if (typeof window !== "undefined") {
+    localStorage.setItem("hasSubscription", "true")
+    localStorage.setItem("userPlan", plan)
+  }
+
+  return user
+}
+
+export function getCurrentUserSubscriptionStatus(): { hasSubscription: boolean; plan?: string } {
+  if (typeof window === "undefined") {
+    return { hasSubscription: false }
+  }
+
+  const hasSubscription = localStorage.getItem("hasSubscription") === "true"
+  const plan = localStorage.getItem("userPlan") || undefined
+
+  return { hasSubscription, plan }
+}

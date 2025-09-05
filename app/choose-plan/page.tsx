@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Check, Star } from "lucide-react"
 import { StripePaymentForm } from "@/components/stripe-payment-form"
+import { getCurrentUserSubscriptionStatus } from "@/lib/auth-system"
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -19,6 +20,15 @@ export default function ChoosePlanPage() {
   const [showPayment, setShowPayment] = useState(false)
 
   useEffect(() => {
+    const checkSubscriptionStatus = async () => {
+      const { hasSubscription } = await getCurrentUserSubscriptionStatus()
+      if (hasSubscription) {
+        router.push("/my-hearts")
+        return
+      }
+    }
+    checkSubscriptionStatus()
+
     const userData = localStorage.getItem("tempUser")
     if (!userData) {
       router.push("/auth")
@@ -33,6 +43,9 @@ export default function ChoosePlanPage() {
   }
 
   const handlePaymentSuccess = (data: any) => {
+    localStorage.setItem("hasSubscription", "true")
+    localStorage.setItem("userPlan", selectedPlan!)
+
     const updatedUser = { ...tempUser, hasSubscription: true, subscriptionPlan: selectedPlan }
     localStorage.setItem("userData", JSON.stringify(updatedUser))
     localStorage.removeItem("tempUser")
