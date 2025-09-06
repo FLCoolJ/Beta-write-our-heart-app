@@ -90,11 +90,18 @@ export default function AuthPage() {
 
     try {
       if (mode === "signin") {
+        console.log("[v0] Starting signup process...")
+
+        const redirectUrl =
+          process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth/callback`
+
+        console.log("[v0] Email redirect URL:", redirectUrl)
+
         const { data, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
-            emailRedirectTo: `https://beta.writeourheart.com/auth/callback`,
+            emailRedirectTo: redirectUrl,
             data: {
               first_name: formData.firstName,
               last_name: formData.lastName,
@@ -103,11 +110,15 @@ export default function AuthPage() {
           },
         })
 
+        console.log("[v0] Signup response:", { data, error })
+
         if (error) {
+          console.error("[v0] Signup error:", error)
           setError(error.message)
           return
         }
 
+        console.log("[v0] Signup successful, user created:", data.user?.id)
         setSuccess("Account created! Check your email to verify your account.")
 
         // Clear form after successful signup
