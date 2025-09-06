@@ -145,6 +145,31 @@ export default function AuthPage() {
 
     if (!validateForm()) return
 
+    if (mode === "signin") {
+      try {
+        let captchaCompleted = false
+
+        if (typeof window !== "undefined") {
+          const hcaptcha = (window as any).hcaptcha
+          if (hcaptcha && typeof hcaptcha.getResponse === "function") {
+            const response = hcaptcha.getResponse()
+            captchaCompleted = response && response.length > 0
+          }
+        }
+
+        if (!captchaCompleted) {
+          setError("Please complete the security verification (captcha) before signing up.")
+          return
+        }
+
+        console.log("[v0] Captcha completed, proceeding with signup")
+      } catch (error) {
+        console.warn("[v0] Could not verify captcha completion:", error)
+        setError("Please complete the security verification before signing up.")
+        return
+      }
+    }
+
     setIsLoading(true)
     setError("")
     setSuccess("")
@@ -420,8 +445,17 @@ export default function AuthPage() {
               )}
 
               {mode === "signin" && (
-                <div className="flex justify-center">
-                  <div className="h-captcha" data-sitekey="1deae092-5492-4c8a-94f4-1f86ae6c28ec"></div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">Security Verification</Label>
+                  <div className="flex justify-center p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="h-captcha" data-sitekey="1deae092-5492-4c8a-94f4-1f86ae6c28ec"></div>
+                    <div id="hcaptcha-loading" className="text-sm text-gray-500">
+                      Loading security verification...
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 text-center">
+                    Please complete the security check above before creating your account
+                  </p>
                 </div>
               )}
 
