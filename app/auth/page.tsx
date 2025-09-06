@@ -29,6 +29,8 @@ export default function AuthPage() {
     firstName: "",
     lastName: "",
   })
+  const [captchaLoaded, setCaptchaLoaded] = useState(false)
+  const [captchaWidgetId, setCaptchaWidgetId] = useState<string | null>(null)
 
   useEffect(() => {
     const urlMode = searchParams.get("mode")
@@ -46,27 +48,47 @@ export default function AuthPage() {
       if (existingScript) {
         return
       }
+      ;(window as any).onHCaptchaLoad = () => {
+        console.log("[v0] hCaptcha script loaded, rendering widget...")
+        if ((window as any).hcaptcha && document.getElementById("hcaptcha-container")) {
+          try {
+            const widgetId = (window as any).hcaptcha.render("hcaptcha-container", {
+              sitekey: "1deae092-5492-4c8a-94f4-1f86ae6c28ec",
+              callback: (token: string) => {
+                console.log("[v0] hCaptcha completed with token:", token)
+                handleCaptchaComplete(token)
+              },
+              "error-callback": (error: string) => {
+                console.error("[v0] hCaptcha error:", error)
+                setError("Security verification failed. Please try again.")
+              },
+            })
+            setCaptchaWidgetId(widgetId)
+            setCaptchaLoaded(true)
+            console.log("[v0] hCaptcha widget rendered successfully with ID:", widgetId)
+          } catch (error) {
+            console.error("[v0] Error rendering hCaptcha:", error)
+            setError("Failed to load security verification. Please refresh the page.")
+          }
+        }
+      }
 
       const script = document.createElement("script")
-      script.src = "https://js.hcaptcha.com/1/api.js"
+      script.src = "https://js.hcaptcha.com/1/api.js?onload=onHCaptchaLoad&render=explicit"
       script.async = true
       script.defer = true
       document.head.appendChild(script)
     }
 
-    loadHCaptcha()
-  }, [searchParams])
-
-  useEffect(() => {
-    ;(window as any).onHCaptchaSubmit = async (token: string) => {
-      console.log("[v0] hCaptcha completed, proceeding with signup")
-      await performSignup()
+    if (mode === "signin") {
+      loadHCaptcha()
     }
+  }, [searchParams, mode])
 
-    return () => {
-      delete (window as any).onHCaptchaSubmit
-    }
-  }, [formData, referralCode])
+  const handleCaptchaComplete = async (token: string) => {
+    console.log("[v0] Processing captcha completion...")
+    await performSignup()
+  }
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => {
@@ -147,6 +169,9 @@ export default function AuthPage() {
       if (error) {
         console.error("[v0] Signup error:", error)
         setError(error.message)
+        if (captchaWidgetId && (window as any).hcaptcha) {
+          ;(window as any).hcaptcha.reset(captchaWidgetId)
+        }
         return
       }
 
@@ -163,6 +188,9 @@ export default function AuthPage() {
     } catch (error) {
       console.error("[v0] Auth error:", error)
       setError("Something went wrong. Please try again.")
+      if (captchaWidgetId && (window as any).hcaptcha) {
+        ;(window as any).hcaptcha.reset(captchaWidgetId)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -217,6 +245,12 @@ export default function AuthPage() {
       } finally {
         setIsLoading(false)
       }
+    } else if (mode === "signin") {
+      if (!captchaLoaded) {
+        setError("Please wait for security verification to load")
+        return
+      }
+      setError("Please complete the security verification above")
     }
   }
 
@@ -390,7 +424,9 @@ export default function AuthPage() {
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-700">Security Verification</Label>
                   <div className="flex justify-center p-4 bg-gray-50 border border-gray-200 rounded-lg min-h-[78px]">
-                    <div id="hcaptcha-container"></div>
+                    <div id="hcaptcha-container">
+                      {!captchaLoaded && <div className="text-sm text-gray-500">Loading security verification...</div>}
+                    </div>
                   </div>
                   <p className="text-xs text-gray-500 text-center">
                     Please complete the security check above before creating your account
@@ -401,10 +437,8 @@ export default function AuthPage() {
               {mode === "signin" ? (
                 <Button
                   type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white disabled:opacity-50 h-captcha"
-                  data-sitekey="1deae092-5492-4c8a-94f4-1f86ae6c28ec"
-                  data-callback="onHCaptchaSubmit"
+                  disabled={isLoading || !captchaLoaded}
+                  className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white disabled:opacity-50"
                 >
                   {isLoading ? (
                     <div className="flex items-center">
