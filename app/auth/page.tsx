@@ -29,6 +29,8 @@ export default function AuthPage() {
     firstName: "",
     lastName: "",
   })
+  const [captchaLoaded, setCaptchaLoaded] = useState(false)
+  const [captchaWidgetId, setCaptchaWidgetId] = useState<string | null>(null)
 
   useEffect(() => {
     const urlMode = searchParams.get("mode")
@@ -46,40 +48,60 @@ export default function AuthPage() {
         const existingScript = document.querySelector('script[src*="hcaptcha.com"]')
         if (existingScript) {
           console.log("[v0] hCaptcha script already loaded")
+          if (typeof window !== "undefined" && (window as any).hcaptcha) {
+            renderCaptcha()
+          }
           return
+        }
+        ;(window as any).onHCaptchaLoad = () => {
+          console.log("[v0] hCaptcha is ready via explicit callback")
+          setCaptchaLoaded(true)
+          renderCaptcha()
         }
 
         const script = document.createElement("script")
-        script.src = "https://js.hcaptcha.com/1/api.js"
+        script.src = "https://js.hcaptcha.com/1/api.js?onload=onHCaptchaLoad&render=explicit"
         script.async = true
         script.defer = true
         script.crossOrigin = "anonymous"
 
-        const handleLoad = () => {
-          console.log("[v0] hCaptcha script loaded successfully")
-          script.removeEventListener("load", handleLoad)
-          script.removeEventListener("error", handleError)
-        }
-
         const handleError = () => {
           console.error("[v0] Failed to load hCaptcha script")
           setError("Failed to load security verification. Please refresh the page.")
-          script.removeEventListener("load", handleLoad)
           script.removeEventListener("error", handleError)
         }
 
-        script.addEventListener("load", handleLoad)
         script.addEventListener("error", handleError)
-
-        if (script.onload !== undefined) {
-          script.onload = handleLoad
-          script.onerror = handleError
-        }
-
         document.head.appendChild(script)
       } catch (error) {
         console.error("[v0] Error loading hCaptcha:", error)
         setError("Security verification unavailable. Please refresh the page.")
+      }
+    }
+
+    const renderCaptcha = () => {
+      try {
+        if (typeof window !== "undefined" && (window as any).hcaptcha && mode === "signin") {
+          const container = document.getElementById("hcaptcha-container")
+          if (container && !captchaWidgetId) {
+            const widgetId = (window as any).hcaptcha.render("hcaptcha-container", {
+              sitekey: "1deae092-5492-4c8a-94f4-1f86ae6c28ec",
+              callback: (token: string) => {
+                console.log("[v0] hCaptcha completed successfully")
+              },
+              "expired-callback": () => {
+                console.log("[v0] hCaptcha expired")
+              },
+              "error-callback": (error: any) => {
+                console.error("[v0] hCaptcha error:", error)
+              },
+            })
+            setCaptchaWidgetId(widgetId)
+            console.log("[v0] hCaptcha widget rendered with ID:", widgetId)
+          }
+        }
+      } catch (error) {
+        console.error("[v0] Error rendering hCaptcha:", error)
       }
     }
 
@@ -93,15 +115,43 @@ export default function AuthPage() {
 
     return () => {
       try {
+        if (captchaWidgetId && typeof window !== "undefined" && (window as any).hcaptcha) {
+          ;(window as any).hcaptcha.remove(captchaWidgetId)
+        }
+        delete (window as any).onHCaptchaLoad
         const existingScript = document.querySelector('script[src*="hcaptcha.com"]')
         if (existingScript && existingScript.parentNode) {
           existingScript.parentNode.removeChild(existingScript)
         }
       } catch (error) {
-        console.warn("[v0] Script cleanup error:", error)
+        console.warn("[v0] Cleanup error:", error)
       }
     }
-  }, [searchParams])
+  }, [searchParams, mode, captchaWidgetId])
+
+  useEffect(() => {
+    if (mode === "signin" && captchaLoaded && !captchaWidgetId) {
+      setTimeout(() => {
+        const renderCaptcha = () => {
+          try {
+            if (typeof window !== "undefined" && (window as any).hcaptcha) {
+              const container = document.getElementById("hcaptcha-container")
+              if (container) {
+                const widgetId = (window as any).hcaptcha.render("hcaptcha-container", {
+                  sitekey: "1deae092-5492-4c8a-94f4-1f86ae6c28ec",
+                })
+                setCaptchaWidgetId(widgetId)
+                console.log("[v0] hCaptcha widget re-rendered with ID:", widgetId)
+              }
+            }
+          } catch (error) {
+            console.error("[v0] Error re-rendering hCaptcha:", error)
+          }
+        }
+        renderCaptcha()
+      }, 100)
+    }
+  }, [mode, captchaLoaded, captchaWidgetId])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => {
@@ -152,7 +202,7 @@ export default function AuthPage() {
         if (typeof window !== "undefined") {
           const hcaptcha = (window as any).hcaptcha
           if (hcaptcha && typeof hcaptcha.getResponse === "function") {
-            const response = hcaptcha.getResponse()
+            const response = hcaptcha.getResponse(captchaWidgetId)
             captchaCompleted = response && response.length > 0
           }
         }
@@ -223,7 +273,7 @@ export default function AuthPage() {
           if (typeof window !== "undefined") {
             const hcaptcha = (window as any).hcaptcha
             if (hcaptcha && typeof hcaptcha.reset === "function") {
-              hcaptcha.reset()
+              hcaptcha.reset(captchaWidgetId)
             }
           }
         } catch (error) {
@@ -289,6 +339,9 @@ export default function AuthPage() {
       firstName: "",
       lastName: "",
     })
+    if (captchaWidgetId && typeof window !== "undefined" && (window as any).hcaptcha) {
+      ;(window as any).hcaptcha.reset(captchaWidgetId)
+    }
   }
 
   return (
@@ -447,11 +500,14 @@ export default function AuthPage() {
               {mode === "signin" && (
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-700">Security Verification</Label>
-                  <div className="flex justify-center p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                    <div className="h-captcha" data-sitekey="1deae092-5492-4c8a-94f4-1f86ae6c28ec"></div>
-                    <div id="hcaptcha-loading" className="text-sm text-gray-500">
-                      Loading security verification...
-                    </div>
+                  <div className="flex justify-center p-4 bg-gray-50 border border-gray-200 rounded-lg min-h-[78px]">
+                    <div id="hcaptcha-container"></div>
+                    {!captchaLoaded && (
+                      <div className="text-sm text-gray-500 flex items-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400 mr-2"></div>
+                        Loading security verification...
+                      </div>
+                    )}
                   </div>
                   <p className="text-xs text-gray-500 text-center">
                     Please complete the security check above before creating your account
