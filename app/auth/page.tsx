@@ -31,6 +31,7 @@ export default function AuthPage() {
   })
   const [captchaLoaded, setCaptchaLoaded] = useState(false)
   const [captchaWidgetId, setCaptchaWidgetId] = useState<string | null>(null)
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
 
   useEffect(() => {
     const urlMode = searchParams.get("mode")
@@ -87,7 +88,8 @@ export default function AuthPage() {
 
   const handleCaptchaComplete = async (token: string) => {
     console.log("[v0] Processing captcha completion...")
-    await performSignup()
+    setCaptchaToken(token)
+    await performSignup(token)
   }
 
   const handleInputChange = (field: string, value: string) => {
@@ -126,7 +128,7 @@ export default function AuthPage() {
     return true
   }
 
-  const performSignup = async () => {
+  const performSignup = async (token?: string) => {
     setIsLoading(true)
     setError("")
     setSuccess("")
@@ -156,6 +158,7 @@ export default function AuthPage() {
         password: formData.password,
         options: {
           emailRedirectTo: redirectUrl,
+          captchaToken: token || captchaToken,
           data: {
             first_name: formData.firstName,
             last_name: formData.lastName,
@@ -171,6 +174,7 @@ export default function AuthPage() {
         setError(error.message)
         if (captchaWidgetId && (window as any).hcaptcha) {
           ;(window as any).hcaptcha.reset(captchaWidgetId)
+          setCaptchaToken(null)
         }
         return
       }
@@ -190,6 +194,7 @@ export default function AuthPage() {
       setError("Something went wrong. Please try again.")
       if (captchaWidgetId && (window as any).hcaptcha) {
         ;(window as any).hcaptcha.reset(captchaWidgetId)
+        setCaptchaToken(null)
       }
     } finally {
       setIsLoading(false)
@@ -250,7 +255,10 @@ export default function AuthPage() {
         setError("Please wait for security verification to load")
         return
       }
-      setError("Please complete the security verification above")
+      if (!captchaToken) {
+        setError("Please complete the security verification above")
+        return
+      }
     }
   }
 
@@ -265,6 +273,8 @@ export default function AuthPage() {
       firstName: "",
       lastName: "",
     })
+    // Clear stored captcha token when switching mode
+    setCaptchaToken(null)
   }
 
   return (
