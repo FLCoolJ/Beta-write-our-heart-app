@@ -29,8 +29,6 @@ export default function AuthPage() {
     firstName: "",
     lastName: "",
   })
-  const [captchaLoaded, setCaptchaLoaded] = useState(false)
-  const [captchaWidgetId, setCaptchaWidgetId] = useState<string | null>(null)
 
   useEffect(() => {
     const urlMode = searchParams.get("mode")
@@ -44,114 +42,31 @@ export default function AuthPage() {
     }
 
     const loadHCaptcha = () => {
-      try {
-        const existingScript = document.querySelector('script[src*="hcaptcha.com"]')
-        if (existingScript) {
-          console.log("[v0] hCaptcha script already loaded")
-          if (typeof window !== "undefined" && (window as any).hcaptcha) {
-            renderCaptcha()
-          }
-          return
-        }
-        ;(window as any).onHCaptchaLoad = () => {
-          console.log("[v0] hCaptcha is ready via explicit callback")
-          setCaptchaLoaded(true)
-          renderCaptcha()
-        }
-
-        const script = document.createElement("script")
-        script.src = "https://js.hcaptcha.com/1/api.js?onload=onHCaptchaLoad&render=explicit"
-        script.async = true
-        script.defer = true
-        script.crossOrigin = "anonymous"
-
-        const handleError = () => {
-          console.error("[v0] Failed to load hCaptcha script")
-          setError("Failed to load security verification. Please refresh the page.")
-          script.removeEventListener("error", handleError)
-        }
-
-        script.addEventListener("error", handleError)
-        document.head.appendChild(script)
-      } catch (error) {
-        console.error("[v0] Error loading hCaptcha:", error)
-        setError("Security verification unavailable. Please refresh the page.")
+      const existingScript = document.querySelector('script[src*="hcaptcha.com"]')
+      if (existingScript) {
+        return
       }
+
+      const script = document.createElement("script")
+      script.src = "https://js.hcaptcha.com/1/api.js"
+      script.async = true
+      script.defer = true
+      document.head.appendChild(script)
     }
 
-    const renderCaptcha = () => {
-      try {
-        if (typeof window !== "undefined" && (window as any).hcaptcha && mode === "signin") {
-          const container = document.getElementById("hcaptcha-container")
-          if (container && !captchaWidgetId) {
-            const widgetId = (window as any).hcaptcha.render("hcaptcha-container", {
-              sitekey: "1deae092-5492-4c8a-94f4-1f86ae6c28ec",
-              callback: (token: string) => {
-                console.log("[v0] hCaptcha completed successfully")
-              },
-              "expired-callback": () => {
-                console.log("[v0] hCaptcha expired")
-              },
-              "error-callback": (error: any) => {
-                console.error("[v0] hCaptcha error:", error)
-              },
-            })
-            setCaptchaWidgetId(widgetId)
-            console.log("[v0] hCaptcha widget rendered with ID:", widgetId)
-          }
-        }
-      } catch (error) {
-        console.error("[v0] Error rendering hCaptcha:", error)
-      }
-    }
+    loadHCaptcha()
+  }, [searchParams])
 
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", () => {
-        setTimeout(loadHCaptcha, 200)
-      })
-    } else {
-      setTimeout(loadHCaptcha, 200)
+  useEffect(() => {
+    ;(window as any).onHCaptchaSubmit = async (token: string) => {
+      console.log("[v0] hCaptcha completed, proceeding with signup")
+      await performSignup()
     }
 
     return () => {
-      try {
-        if (captchaWidgetId && typeof window !== "undefined" && (window as any).hcaptcha) {
-          ;(window as any).hcaptcha.remove(captchaWidgetId)
-        }
-        delete (window as any).onHCaptchaLoad
-        const existingScript = document.querySelector('script[src*="hcaptcha.com"]')
-        if (existingScript && existingScript.parentNode) {
-          existingScript.parentNode.removeChild(existingScript)
-        }
-      } catch (error) {
-        console.warn("[v0] Cleanup error:", error)
-      }
+      delete (window as any).onHCaptchaSubmit
     }
-  }, [searchParams, mode, captchaWidgetId])
-
-  useEffect(() => {
-    if (mode === "signin" && captchaLoaded && !captchaWidgetId) {
-      setTimeout(() => {
-        const renderCaptcha = () => {
-          try {
-            if (typeof window !== "undefined" && (window as any).hcaptcha) {
-              const container = document.getElementById("hcaptcha-container")
-              if (container) {
-                const widgetId = (window as any).hcaptcha.render("hcaptcha-container", {
-                  sitekey: "1deae092-5492-4c8a-94f4-1f86ae6c28ec",
-                })
-                setCaptchaWidgetId(widgetId)
-                console.log("[v0] hCaptcha widget re-rendered with ID:", widgetId)
-              }
-            }
-          } catch (error) {
-            console.error("[v0] Error re-rendering hCaptcha:", error)
-          }
-        }
-        renderCaptcha()
-      }, 100)
-    }
-  }, [mode, captchaLoaded, captchaWidgetId])
+  }, [formData, referralCode])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => {
@@ -189,105 +104,82 @@ export default function AuthPage() {
     return true
   }
 
+  const performSignup = async () => {
+    setIsLoading(true)
+    setError("")
+    setSuccess("")
+
+    try {
+      console.log("[v0] Starting signup process...")
+
+      let origin = "https://beta.writeourheart.com"
+
+      if (typeof window !== "undefined") {
+        try {
+          origin =
+            window.location.origin ||
+            `${window.location.protocol}//${window.location.host}` ||
+            `${window.location.protocol}//${window.location.hostname}${window.location.port ? ":" + window.location.port : ""}`
+        } catch (e) {
+          console.warn("[v0] Could not detect origin, using default")
+        }
+      }
+
+      const redirectUrl = process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${origin}/auth/callback`
+
+      console.log("[v0] Email redirect URL:", redirectUrl)
+
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            referral_code: referralCode,
+          },
+        },
+      })
+
+      console.log("[v0] Signup response:", { data, error })
+
+      if (error) {
+        console.error("[v0] Signup error:", error)
+        setError(error.message)
+        return
+      }
+
+      console.log("[v0] Signup successful, user created:", data.user?.id)
+      setSuccess("Account created! Check your email to verify your account.")
+
+      setFormData({
+        email: "",
+        password: "",
+        confirmPassword: "",
+        firstName: "",
+        lastName: "",
+      })
+    } catch (error) {
+      console.error("[v0] Auth error:", error)
+      setError("Something went wrong. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     console.log("[v0] Form submitted, mode:", mode)
 
     if (!validateForm()) return
 
-    if (mode === "signin") {
+    if (mode === "login") {
+      setIsLoading(true)
+      setError("")
+      setSuccess("")
+
       try {
-        let captchaCompleted = false
-
-        if (typeof window !== "undefined") {
-          const hcaptcha = (window as any).hcaptcha
-          if (hcaptcha && typeof hcaptcha.getResponse === "function") {
-            const response = hcaptcha.getResponse(captchaWidgetId)
-            captchaCompleted = response && response.length > 0
-          }
-        }
-
-        if (!captchaCompleted) {
-          setError("Please complete the security verification (captcha) before signing up.")
-          return
-        }
-
-        console.log("[v0] Captcha completed, proceeding with signup")
-      } catch (error) {
-        console.warn("[v0] Could not verify captcha completion:", error)
-        setError("Please complete the security verification before signing up.")
-        return
-      }
-    }
-
-    setIsLoading(true)
-    setError("")
-    setSuccess("")
-
-    try {
-      if (mode === "signin") {
-        console.log("[v0] Starting signup process...")
-
-        let origin = "https://beta.writeourheart.com"
-
-        if (typeof window !== "undefined") {
-          try {
-            origin =
-              window.location.origin ||
-              `${window.location.protocol}//${window.location.host}` ||
-              `${window.location.protocol}//${window.location.hostname}${window.location.port ? ":" + window.location.port : ""}`
-          } catch (e) {
-            console.warn("[v0] Could not detect origin, using default")
-          }
-        }
-
-        const redirectUrl = process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${origin}/auth/callback`
-
-        console.log("[v0] Email redirect URL:", redirectUrl)
-
-        const { data, error } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            emailRedirectTo: redirectUrl,
-            data: {
-              first_name: formData.firstName,
-              last_name: formData.lastName,
-              referral_code: referralCode,
-            },
-          },
-        })
-
-        console.log("[v0] Signup response:", { data, error })
-
-        if (error) {
-          console.error("[v0] Signup error:", error)
-          setError(error.message)
-          return
-        }
-
-        console.log("[v0] Signup successful, user created:", data.user?.id)
-        setSuccess("Account created! Check your email to verify your account.")
-
-        try {
-          if (typeof window !== "undefined") {
-            const hcaptcha = (window as any).hcaptcha
-            if (hcaptcha && typeof hcaptcha.reset === "function") {
-              hcaptcha.reset(captchaWidgetId)
-            }
-          }
-        } catch (error) {
-          console.warn("[v0] hCaptcha reset error:", error)
-        }
-
-        setFormData({
-          email: "",
-          password: "",
-          confirmPassword: "",
-          firstName: "",
-          lastName: "",
-        })
-      } else {
         console.log("[v0] Starting login process...")
 
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -319,12 +211,12 @@ export default function AuthPage() {
             }
           }
         }, 1500)
+      } catch (error) {
+        console.error("[v0] Auth error:", error)
+        setError("Something went wrong. Please try again.")
+      } finally {
+        setIsLoading(false)
       }
-    } catch (error) {
-      console.error("[v0] Auth error:", error)
-      setError("Something went wrong. Please try again.")
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -339,9 +231,6 @@ export default function AuthPage() {
       firstName: "",
       lastName: "",
     })
-    if (captchaWidgetId && typeof window !== "undefined" && (window as any).hcaptcha) {
-      ;(window as any).hcaptcha.reset(captchaWidgetId)
-    }
   }
 
   return (
@@ -502,12 +391,6 @@ export default function AuthPage() {
                   <Label className="text-sm font-medium text-gray-700">Security Verification</Label>
                   <div className="flex justify-center p-4 bg-gray-50 border border-gray-200 rounded-lg min-h-[78px]">
                     <div id="hcaptcha-container"></div>
-                    {!captchaLoaded && (
-                      <div className="text-sm text-gray-500 flex items-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400 mr-2"></div>
-                        Loading security verification...
-                      </div>
-                    )}
                   </div>
                   <p className="text-xs text-gray-500 text-center">
                     Please complete the security check above before creating your account
@@ -515,22 +398,39 @@ export default function AuthPage() {
                 </div>
               )}
 
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    {mode === "login" ? "Signing In..." : "Creating Account..."}
-                  </div>
-                ) : mode === "login" ? (
-                  "Sign In"
-                ) : (
-                  "Create Account"
-                )}
-              </Button>
+              {mode === "signin" ? (
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white disabled:opacity-50 h-captcha"
+                  data-sitekey="1deae092-5492-4c8a-94f4-1f86ae6c28ec"
+                  data-callback="onHCaptchaSubmit"
+                >
+                  {isLoading ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Creating Account...
+                    </div>
+                  ) : (
+                    "Create Account"
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Signing In...
+                    </div>
+                  ) : (
+                    "Sign In"
+                  )}
+                </Button>
+              )}
             </form>
 
             <div className="mt-6 text-center">
