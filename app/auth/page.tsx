@@ -40,6 +40,20 @@ export default function AuthPage() {
     if (ref) {
       setReferralCode(ref)
     }
+
+    const script = document.createElement("script")
+    script.src = "https://js.hcaptcha.com/1/api.js"
+    script.async = true
+    script.defer = true
+    document.head.appendChild(script)
+
+    return () => {
+      // Cleanup script on unmount
+      const existingScript = document.querySelector('script[src="https://js.hcaptcha.com/1/api.js"]')
+      if (existingScript) {
+        document.head.removeChild(existingScript)
+      }
+    }
   }, [searchParams])
 
   const handleInputChange = (field: string, value: string) => {
@@ -83,6 +97,14 @@ export default function AuthPage() {
     e.preventDefault()
 
     if (!validateForm()) return
+
+    if (mode === "signin") {
+      const hcaptchaResponse = (window as any).hcaptcha?.getResponse()
+      if (!hcaptchaResponse) {
+        setError("Please complete the captcha verification")
+        return
+      }
+    }
 
     setIsLoading(true)
     setError("")
@@ -323,6 +345,12 @@ export default function AuthPage() {
                       disabled={isLoading}
                     />
                   </div>
+                </div>
+              )}
+
+              {mode === "signin" && (
+                <div className="flex justify-center">
+                  <div className="h-captcha" data-sitekey="1deae092-5492-4c8a-94f4-1f86ae6c28ec"></div>
                 </div>
               )}
 
