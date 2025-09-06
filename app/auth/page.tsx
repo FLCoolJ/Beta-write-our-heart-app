@@ -145,35 +145,6 @@ export default function AuthPage() {
 
     if (!validateForm()) return
 
-    if (mode === "signin") {
-      try {
-        let hcaptchaResponse = null
-
-        if (typeof window !== "undefined") {
-          const hcaptcha = (window as any).hcaptcha
-          if (hcaptcha && typeof hcaptcha.getResponse === "function") {
-            hcaptchaResponse = hcaptcha.getResponse()
-          } else {
-            const responseElement = document.querySelector('[name="h-captcha-response"]') as HTMLInputElement
-            if (responseElement) {
-              hcaptchaResponse = responseElement.value
-            }
-          }
-        }
-
-        console.log("[v0] hCaptcha response:", hcaptchaResponse ? "present" : "missing")
-
-        if (!hcaptchaResponse) {
-          setError("Please complete the captcha verification")
-          return
-        }
-      } catch (error) {
-        console.error("[v0] hCaptcha error:", error)
-        setError("Captcha verification failed. Please refresh and try again.")
-        return
-      }
-    }
-
     setIsLoading(true)
     setError("")
     setSuccess("")
