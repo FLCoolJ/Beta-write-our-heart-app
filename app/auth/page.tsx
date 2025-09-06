@@ -41,17 +41,64 @@ export default function AuthPage() {
       setReferralCode(ref)
     }
 
-    const script = document.createElement("script")
-    script.src = "https://js.hcaptcha.com/1/api.js"
-    script.async = true
-    script.defer = true
-    document.head.appendChild(script)
+    const loadHCaptcha = () => {
+      try {
+        const existingScript = document.querySelector('script[src*="hcaptcha.com"]')
+        if (existingScript) {
+          console.log("[v0] hCaptcha script already loaded")
+          return
+        }
+
+        const script = document.createElement("script")
+        script.src = "https://js.hcaptcha.com/1/api.js"
+        script.async = true
+        script.defer = true
+        script.crossOrigin = "anonymous"
+
+        const handleLoad = () => {
+          console.log("[v0] hCaptcha script loaded successfully")
+          script.removeEventListener("load", handleLoad)
+          script.removeEventListener("error", handleError)
+        }
+
+        const handleError = () => {
+          console.error("[v0] Failed to load hCaptcha script")
+          setError("Failed to load security verification. Please refresh the page.")
+          script.removeEventListener("load", handleLoad)
+          script.removeEventListener("error", handleError)
+        }
+
+        script.addEventListener("load", handleLoad)
+        script.addEventListener("error", handleError)
+
+        if (script.onload !== undefined) {
+          script.onload = handleLoad
+          script.onerror = handleError
+        }
+
+        document.head.appendChild(script)
+      } catch (error) {
+        console.error("[v0] Error loading hCaptcha:", error)
+        setError("Security verification unavailable. Please refresh the page.")
+      }
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => {
+        setTimeout(loadHCaptcha, 200)
+      })
+    } else {
+      setTimeout(loadHCaptcha, 200)
+    }
 
     return () => {
-      // Cleanup script on unmount
-      const existingScript = document.querySelector('script[src="https://js.hcaptcha.com/1/api.js"]')
-      if (existingScript) {
-        document.head.removeChild(existingScript)
+      try {
+        const existingScript = document.querySelector('script[src*="hcaptcha.com"]')
+        if (existingScript && existingScript.parentNode) {
+          existingScript.parentNode.removeChild(existingScript)
+        }
+      } catch (error) {
+        console.warn("[v0] Script cleanup error:", error)
       }
     }
   }, [searchParams])
@@ -62,7 +109,6 @@ export default function AuthPage() {
       return { ...prev, [field]: value }
     })
 
-    // Clear errors when user starts typing
     if (error) setError("")
     if (success) setSuccess("")
   }
@@ -95,13 +141,35 @@ export default function AuthPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log("[v0] Form submitted, mode:", mode)
 
     if (!validateForm()) return
 
     if (mode === "signin") {
-      const hcaptchaResponse = (window as any).hcaptcha?.getResponse()
-      if (!hcaptchaResponse) {
-        setError("Please complete the captcha verification")
+      try {
+        let hcaptchaResponse = null
+
+        if (typeof window !== "undefined") {
+          const hcaptcha = (window as any).hcaptcha
+          if (hcaptcha && typeof hcaptcha.getResponse === "function") {
+            hcaptchaResponse = hcaptcha.getResponse()
+          } else {
+            const responseElement = document.querySelector('[name="h-captcha-response"]') as HTMLInputElement
+            if (responseElement) {
+              hcaptchaResponse = responseElement.value
+            }
+          }
+        }
+
+        console.log("[v0] hCaptcha response:", hcaptchaResponse ? "present" : "missing")
+
+        if (!hcaptchaResponse) {
+          setError("Please complete the captcha verification")
+          return
+        }
+      } catch (error) {
+        console.error("[v0] hCaptcha error:", error)
+        setError("Captcha verification failed. Please refresh and try again.")
         return
       }
     }
@@ -114,8 +182,20 @@ export default function AuthPage() {
       if (mode === "signin") {
         console.log("[v0] Starting signup process...")
 
-        const redirectUrl =
-          process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth/callback`
+        let origin = "https://beta.writeourheart.com"
+
+        if (typeof window !== "undefined") {
+          try {
+            origin =
+              window.location.origin ||
+              `${window.location.protocol}//${window.location.host}` ||
+              `${window.location.protocol}//${window.location.hostname}${window.location.port ? ":" + window.location.port : ""}`
+          } catch (e) {
+            console.warn("[v0] Could not detect origin, using default")
+          }
+        }
+
+        const redirectUrl = process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${origin}/auth/callback`
 
         console.log("[v0] Email redirect URL:", redirectUrl)
 
@@ -143,7 +223,17 @@ export default function AuthPage() {
         console.log("[v0] Signup successful, user created:", data.user?.id)
         setSuccess("Account created! Check your email to verify your account.")
 
-        // Clear form after successful signup
+        try {
+          if (typeof window !== "undefined") {
+            const hcaptcha = (window as any).hcaptcha
+            if (hcaptcha && typeof hcaptcha.reset === "function") {
+              hcaptcha.reset()
+            }
+          }
+        } catch (error) {
+          console.warn("[v0] hCaptcha reset error:", error)
+        }
+
         setFormData({
           email: "",
           password: "",
@@ -152,27 +242,40 @@ export default function AuthPage() {
           lastName: "",
         })
       } else {
+        console.log("[v0] Starting login process...")
+
         const { data, error } = await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
         })
 
         if (error) {
+          console.error("[v0] Login error:", error)
           setError(error.message)
           return
         }
 
+        console.log("[v0] Login successful")
         setSuccess("Welcome back! Redirecting...")
 
-        // Check if user has subscription in their metadata
         const hasSubscription = data.user?.user_metadata?.subscription_status === "active"
+        console.log("[v0] Has subscription:", hasSubscription)
+
+        const redirectPath = hasSubscription ? "/my-hearts" : "/select-plan"
 
         setTimeout(() => {
-          router.push(hasSubscription ? "/my-hearts" : "/select-plan")
+          try {
+            router.push(redirectPath)
+          } catch (error) {
+            console.warn("[v0] Router push failed, using window.location")
+            if (typeof window !== "undefined") {
+              window.location.href = redirectPath
+            }
+          }
         }, 1500)
       }
     } catch (error) {
-      console.error("Auth error:", error)
+      console.error("[v0] Auth error:", error)
       setError("Something went wrong. Please try again.")
     } finally {
       setIsLoading(false)
@@ -194,7 +297,6 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50">
-      {/* Header */}
       <div className="bg-white/80 backdrop-blur-sm border-b border-yellow-200">
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -211,7 +313,6 @@ export default function AuthPage() {
       </div>
 
       <div className="max-w-md mx-auto px-4 py-12">
-        {/* Referral Banner */}
         {referralCode && mode === "signin" && (
           <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -240,7 +341,6 @@ export default function AuthPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Error/Success Messages */}
             {error && (
               <Alert className="mb-6 border-red-200 bg-red-50">
                 <AlertCircle className="h-4 w-4 text-red-600" />
