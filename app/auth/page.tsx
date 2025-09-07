@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Heart, ArrowLeft, Mail, Lock, User, Gift, AlertCircle, CheckCircle } from "lucide-react"
+import { Heart, ArrowLeft, Mail, Lock, User, Gift, CheckCircle } from "lucide-react"
 import Link from "next/link"
 
 export default function AuthPage() {
@@ -213,12 +213,9 @@ export default function AuthPage() {
           </div>
         )}
 
-        {error && (
-          <Alert className="mb-6 border-red-200 bg-red-50">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800">{error}</AlertDescription>
-          </Alert>
-        )}
+        <p id="auth-error" style={{ color: "#c00" }}>
+          {error}
+        </p>
 
         {success && (
           <Alert className="mb-6 border-green-200 bg-green-50">
@@ -243,14 +240,14 @@ export default function AuthPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSignUp} className="space-y-4">
+              <form id="signupForm" onSubmit={handleSignUp} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="signUpFirstName">First Name</Label>
+                    <Label htmlFor="firstName">First Name</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
-                        id="signUpFirstName"
+                        id="firstName"
                         type="text"
                         placeholder="John"
                         value={signUpData.firstName}
@@ -262,11 +259,11 @@ export default function AuthPage() {
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="signUpLastName">Last Name</Label>
+                    <Label htmlFor="lastName">Last Name</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
-                        id="signUpLastName"
+                        id="lastName"
                         type="text"
                         placeholder="Doe"
                         value={signUpData.lastName}
@@ -280,11 +277,11 @@ export default function AuthPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="signUpEmail">Email</Label>
+                  <Label htmlFor="email">Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      id="signUpEmail"
+                      id="email"
                       type="email"
                       placeholder="your@email.com"
                       value={signUpData.email}
@@ -297,11 +294,11 @@ export default function AuthPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="signUpPassword">Password</Label>
+                  <Label htmlFor="password">Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      id="signUpPassword"
+                      id="password"
                       type="password"
                       placeholder="••••••••"
                       value={signUpData.password}
@@ -314,11 +311,11 @@ export default function AuthPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="signUpConfirmPassword">Confirm Password</Label>
+                  <Label htmlFor="confirm">Confirm Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      id="signUpConfirmPassword"
+                      id="confirm"
                       type="password"
                       placeholder="••••••••"
                       value={signUpData.confirmPassword}
@@ -368,13 +365,13 @@ export default function AuthPage() {
               <p className="text-gray-600 mt-2">Welcome back to Write Our Heart</p>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSignIn} className="space-y-4">
+              <form id="signinForm" onSubmit={handleSignIn} className="space-y-4">
                 <div>
-                  <Label htmlFor="signInEmail">Email</Label>
+                  <Label htmlFor="emailLogin">Email</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      id="signInEmail"
+                      id="emailLogin"
                       type="email"
                       placeholder="your@email.com"
                       value={signInData.email}
@@ -387,11 +384,11 @@ export default function AuthPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="signInPassword">Password</Label>
+                  <Label htmlFor="passwordLogin">Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      id="signInPassword"
+                      id="passwordLogin"
                       type="password"
                       placeholder="••••••••"
                       value={signInData.password}
@@ -434,16 +431,104 @@ export default function AuthPage() {
         <div className="mt-8">
           <Card className="bg-gray-50 border border-gray-200">
             <CardHeader>
-              <CardTitle className="text-lg text-gray-700">Custom Scripts</CardTitle>
+              <CardTitle className="text-lg text-gray-700">Custom Code/Embed</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="bg-white p-4 rounded border">
+                <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
                 <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
                 <div
                   className="h-captcha"
                   data-sitekey="1deae092-5492-4c8a-94f4-1f86ae6c28ec"
                   data-size="invisible"
                 ></div>
+
+                <script
+                  dangerouslySetInnerHTML={{
+                    __html: `
+                    // REPLACE THESE 3 VALUES
+                    const SUPABASE_URL = "${process.env.NEXT_PUBLIC_SUPABASE_URL}";
+                    const SUPABASE_ANON_KEY = "${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}";
+                    const HCAPTCHA_SITE_KEY = "1deae092-5492-4c8a-94f4-1f86ae6c28ec";
+
+                    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+                    function getNextParam() {
+                      const u = new URL(window.location.href);
+                      return u.searchParams.get('next') || '/plans';
+                    }
+
+                    function showError(err) {
+                      const msg = typeof err === 'string' ? err : (err?.message || 'Unexpected error');
+                      const el = document.getElementById('auth-error');
+                      if (el) el.textContent = msg;
+                      console.error(msg, err);
+                    }
+
+                    async function handleSignUp(e) {
+                      e.preventDefault();
+                      const first = document.getElementById('firstName')?.value?.trim();
+                      const last  = document.getElementById('lastName')?.value?.trim();
+                      const email = document.getElementById('email')?.value?.trim();
+                      const pass  = document.getElementById('password')?.value;
+                      const confirm = document.getElementById('confirm')?.value;
+
+                      if (!email || !pass) return showError('Email and password are required.');
+                      if (pass !== confirm) return showError('Passwords do not match.');
+
+                      try {
+                        if (!window.hcaptcha) return showError('Captcha failed to load.');
+                        const captchaToken = await window.hcaptcha.execute(HCAPTCHA_SITE_KEY, { async: true });
+                        if (!captchaToken) return showError('Captcha token missing.');
+
+                        const next = getNextParam();
+                        const { error } = await supabase.auth.signUp({
+                          email,
+                          password: pass,
+                          options: {
+                            emailRedirectTo: \`\${window.location.origin}/auth/callback?next=\${encodeURIComponent(next)}\`,
+                            data: { first_name: first, last_name: last },
+                            captchaToken
+                          }
+                        });
+                        if (error) return showError(error);
+
+                        window.location.assign('/check-your-email');
+                      } catch (err) {
+                        showError(err);
+                      }
+                    }
+
+                    async function handleSignIn(e) {
+                      e.preventDefault();
+                      const email = document.getElementById('emailLogin')?.value?.trim();
+                      const pass  = document.getElementById('passwordLogin')?.value;
+                      const next = getNextParam();
+
+                      try {
+                        let { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+
+                        if (error && /captcha/i.test(error.message)) {
+                          const token = await window.hcaptcha.execute(HCAPTCHA_SITE_KEY, { async: true });
+                          const res = await supabase.auth.signInWithPassword({
+                            email, password: pass, options: { captchaToken: token }
+                          });
+                          error = res.error;
+                        }
+                        if (error) return showError(error);
+
+                        window.location.assign(next);
+                      } catch (err) {
+                        showError(err);
+                      }
+                    }
+
+                    // Hook up your existing form buttons by ID
+                    document.getElementById('signupForm')?.addEventListener('submit', handleSignUp);
+                    document.getElementById('signinForm')?.addEventListener('submit', handleSignIn);
+                  `,
+                  }}
+                />
               </div>
             </CardContent>
           </Card>
