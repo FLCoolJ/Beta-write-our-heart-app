@@ -1,62 +1,26 @@
-import { createServerClient } from "@/lib/supabase/server"
-import { type NextRequest, NextResponse } from "next/server"
+export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
+export const revalidate = 0
 
-export async function GET(request: NextRequest) {
-  try {
-    const supabase = createServerClient()
+import { cookies } from "next/headers"
+import { createClient } from "@supabase/supabase-js"
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
+export async function GET() {
+  const token = cookies().get("sb-access-token")?.value
+  if (!token) return new Response("Unauthorized", { status: 401 })
 
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  })
 
-    const { data: userData, error: userError } = await supabase.from("users").select("*").eq("id", user.id).single()
+  const { data, error } = await supabase.auth.getUser()
+  if (error || !data?.user) return new Response("Unauthorized", { status: 401 })
 
-    if (userError) {
-      console.error("Error fetching user profile:", userError)
-      return NextResponse.json({ error: "Failed to fetch profile" }, { status: 500 })
-    }
-
-    return NextResponse.json({ user: userData })
-  } catch (error) {
-    console.error("Profile fetch error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
-}
-
-export async function PUT(request: NextRequest) {
-  try {
-    const supabase = createServerClient()
-    const updates = await request.json()
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const { data: userData, error: updateError } = await supabase
-      .from("users")
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", user.id)
-      .select()
-      .single()
-
-    if (updateError) {
-      console.error("Error updating user profile:", updateError)
-      return NextResponse.json({ error: "Failed to update profile" }, { status: 500 })
-    }
-
-    return NextResponse.json({ user: userData })
-  } catch (error) {
-    console.error("Profile update error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
-  }
+  // For now, just echo minimal user info so the route doesn't break pages
+  return Response.json(
+    { user: { id: data.user.id, email: data.user.email } },
+    {
+      headers: { "cache-control": "no-store" },
+    },
+  )
 }
