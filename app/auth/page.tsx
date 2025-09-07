@@ -29,9 +29,6 @@ export default function AuthPage() {
     firstName: "",
     lastName: "",
   })
-  const [captchaLoaded, setCaptchaLoaded] = useState(false)
-  const [captchaWidgetId, setCaptchaWidgetId] = useState<string | null>(null)
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
 
   useEffect(() => {
     const urlMode = searchParams.get("mode")
@@ -43,54 +40,7 @@ export default function AuthPage() {
     if (ref) {
       setReferralCode(ref)
     }
-
-    const loadHCaptcha = () => {
-      const existingScript = document.querySelector('script[src*="hcaptcha.com"]')
-      if (existingScript) {
-        return
-      }
-      ;(window as any).onHCaptchaLoad = () => {
-        console.log("[v0] hCaptcha script loaded, rendering widget...")
-        if ((window as any).hcaptcha && document.getElementById("hcaptcha-container")) {
-          try {
-            const widgetId = (window as any).hcaptcha.render("hcaptcha-container", {
-              sitekey: "1deae092-5492-4c8a-94f4-1f86ae6c28ec",
-              callback: (token: string) => {
-                console.log("[v0] hCaptcha completed with token:", token)
-                handleCaptchaComplete(token)
-              },
-              "error-callback": (error: string) => {
-                console.error("[v0] hCaptcha error:", error)
-                setError("Security verification failed. Please try again.")
-              },
-            })
-            setCaptchaWidgetId(widgetId)
-            setCaptchaLoaded(true)
-            console.log("[v0] hCaptcha widget rendered successfully with ID:", widgetId)
-          } catch (error) {
-            console.error("[v0] Error rendering hCaptcha:", error)
-            setError("Failed to load security verification. Please refresh the page.")
-          }
-        }
-      }
-
-      const script = document.createElement("script")
-      script.src = "https://js.hcaptcha.com/1/api.js?onload=onHCaptchaLoad&render=explicit"
-      script.async = true
-      script.defer = true
-      document.head.appendChild(script)
-    }
-
-    if (mode === "signin") {
-      loadHCaptcha()
-    }
-  }, [searchParams, mode])
-
-  const handleCaptchaComplete = async (token: string) => {
-    console.log("[v0] Processing captcha completion...")
-    setCaptchaToken(token)
-    await performSignup(token)
-  }
+  }, [searchParams])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => {
@@ -128,91 +78,18 @@ export default function AuthPage() {
     return true
   }
 
-  const performSignup = async (token?: string) => {
-    setIsLoading(true)
-    setError("")
-    setSuccess("")
-
-    try {
-      console.log("[v0] Starting signup process...")
-
-      let origin = "https://beta.writeourheart.com"
-
-      if (typeof window !== "undefined") {
-        try {
-          origin =
-            window.location.origin ||
-            `${window.location.protocol}//${window.location.host}` ||
-            `${window.location.protocol}//${window.location.hostname}${window.location.port ? ":" + window.location.port : ""}`
-        } catch (e) {
-          console.warn("[v0] Could not detect origin, using default")
-        }
-      }
-
-      const redirectUrl = process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${origin}/auth/callback`
-
-      console.log("[v0] Email redirect URL:", redirectUrl)
-
-      const { data, error } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          captchaToken: token || captchaToken,
-          data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            referral_code: referralCode,
-          },
-        },
-      })
-
-      console.log("[v0] Signup response:", { data, error })
-
-      if (error) {
-        console.error("[v0] Signup error:", error)
-        setError(error.message)
-        if (captchaWidgetId && (window as any).hcaptcha) {
-          ;(window as any).hcaptcha.reset(captchaWidgetId)
-          setCaptchaToken(null)
-        }
-        return
-      }
-
-      console.log("[v0] Signup successful, user created:", data.user?.id)
-      setSuccess("Account created! Check your email to verify your account.")
-
-      setFormData({
-        email: "",
-        password: "",
-        confirmPassword: "",
-        firstName: "",
-        lastName: "",
-      })
-    } catch (error) {
-      console.error("[v0] Auth error:", error)
-      setError("Something went wrong. Please try again.")
-      if (captchaWidgetId && (window as any).hcaptcha) {
-        ;(window as any).hcaptcha.reset(captchaWidgetId)
-        setCaptchaToken(null)
-      }
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     console.log("[v0] Form submitted, mode:", mode)
 
     if (!validateForm()) return
 
-    if (mode === "login") {
-      setIsLoading(true)
-      setError("")
-      setSuccess("")
+    setIsLoading(true)
+    setError("")
+    setSuccess("")
 
-      try {
+    try {
+      if (mode === "login") {
         console.log("[v0] Starting login process...")
 
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -244,21 +121,46 @@ export default function AuthPage() {
             }
           }
         }, 1500)
-      } catch (error) {
-        console.error("[v0] Auth error:", error)
-        setError("Something went wrong. Please try again.")
-      } finally {
-        setIsLoading(false)
+      } else {
+        console.log("[v0] Starting signup process...")
+
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            emailRedirectTo: "https://beta.writeourheart.com/auth/callback",
+            data: {
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+              referral_code: referralCode,
+            },
+          },
+        })
+
+        console.log("[v0] Signup response:", { data, error })
+
+        if (error) {
+          console.error("[v0] Signup error:", error)
+          setError(error.message)
+          return
+        }
+
+        console.log("[v0] Signup successful, user created:", data.user?.id)
+        setSuccess("Account created! Check your email to verify your account.")
+
+        setFormData({
+          email: "",
+          password: "",
+          confirmPassword: "",
+          firstName: "",
+          lastName: "",
+        })
       }
-    } else if (mode === "signin") {
-      if (!captchaLoaded) {
-        setError("Please wait for security verification to load")
-        return
-      }
-      if (!captchaToken) {
-        setError("Please complete the security verification above")
-        return
-      }
+    } catch (error) {
+      console.error("[v0] Auth error:", error)
+      setError("Something went wrong. Please try again.")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -273,8 +175,6 @@ export default function AuthPage() {
       firstName: "",
       lastName: "",
     })
-    // Clear stored captcha token when switching mode
-    setCaptchaToken(null)
   }
 
   return (
@@ -430,51 +330,22 @@ export default function AuthPage() {
                 </div>
               )}
 
-              {mode === "signin" && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">Security Verification</Label>
-                  <div className="flex justify-center p-4 bg-gray-50 border border-gray-200 rounded-lg min-h-[78px]">
-                    <div id="hcaptcha-container">
-                      {!captchaLoaded && <div className="text-sm text-gray-500">Loading security verification...</div>}
-                    </div>
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    {mode === "signin" ? "Creating Account..." : "Signing In..."}
                   </div>
-                  <p className="text-xs text-gray-500 text-center">
-                    Please complete the security check above before creating your account
-                  </p>
-                </div>
-              )}
-
-              {mode === "signin" ? (
-                <Button
-                  type="submit"
-                  disabled={isLoading || !captchaLoaded}
-                  className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white disabled:opacity-50"
-                >
-                  {isLoading ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Creating Account...
-                    </div>
-                  ) : (
-                    "Create Account"
-                  )}
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white disabled:opacity-50"
-                >
-                  {isLoading ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Signing In...
-                    </div>
-                  ) : (
-                    "Sign In"
-                  )}
-                </Button>
-              )}
+                ) : mode === "signin" ? (
+                  "Create Account"
+                ) : (
+                  "Sign In"
+                )}
+              </Button>
             </form>
 
             <div className="mt-6 text-center">
