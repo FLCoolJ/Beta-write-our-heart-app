@@ -456,6 +456,29 @@ export default function AuthPage() {
                   console.error(msg, err);
                 }
 
+                async function getCaptchaToken() {
+                  // wait until widget is rendered
+                  await new Promise((resolve) => {
+                    if (window.hcaptcha && document.querySelector('.h-captcha')) return resolve();
+                    const t = setInterval(() => {
+                      if (window.hcaptcha && document.querySelector('.h-captcha')) {
+                        clearInterval(t); resolve();
+                      }
+                    }, 100);
+                  });
+                  // get a fresh token every submit
+                  return await window.hcaptcha.execute(HCAPTCHA_SITE_KEY, { async: true });
+                }
+
+                function isAlreadyRegistered(error) {
+                  const m = (error?.message || "").toLowerCase();
+                  return m.includes("already registered") || m.includes("user already exists") || m.includes("duplicate key");
+                }
+
+                function isCaptchaError(error) {
+                  return /captcha/i.test(error?.message || "");
+                }
+
                 async function handleSignUp(e) {
                   e.preventDefault();
                   const first = document.getElementById('firstName')?.value?.trim();
@@ -468,8 +491,7 @@ export default function AuthPage() {
                   if (pass !== confirm) return showError('Passwords do not match.');
 
                   try {
-                    if (!window.hcaptcha) return showError('Captcha failed to load.');
-                    const captchaToken = await window.hcaptcha.execute(HCAPTCHA_SITE_KEY, { async: true });
+                    const captchaToken = await getCaptchaToken();
                     if (!captchaToken) return showError('Captcha token missing.');
 
                     const next = getNextParam();
@@ -482,7 +504,20 @@ export default function AuthPage() {
                         captchaToken
                       }
                     });
-                    if (error) return showError(error);
+
+                    if (error) {
+                      if (isAlreadyRegistered(error)) {
+                        // gentle nudge to sign in instead
+                        const signInEmail = document.getElementById('emailLogin');
+                        if (signInEmail) signInEmail.value = email;
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        return showError('That email is already registered. Please sign in.');
+                      }
+                      if (isCaptchaError(error)) {
+                        return showError('Captcha failed. Please try again.');
+                      }
+                      return showError(error);
+                    }
 
                     window.location.assign('/check-your-email');
                   } catch (err) {
@@ -495,12 +530,12 @@ export default function AuthPage() {
                   const email = document.getElementById('emailLogin')?.value?.trim();
                   const pass  = document.getElementById('passwordLogin')?.value;
                   const next = getNextParam();
-
                   try {
                     let { error } = await supabase.auth.signInWithPassword({ email, password: pass });
 
-                    if (error && /captcha/i.test(error.message)) {
-                      const token = await window.hcaptcha.execute(HCAPTCHA_SITE_KEY, { async: true });
+                    // If Attack Protection challenges sign-in, retry with token
+                    if (error && isCaptchaError(error)) {
+                      const token = await getCaptchaToken();
                       const res = await supabase.auth.signInWithPassword({
                         email, password: pass, options: { captchaToken: token }
                       });
