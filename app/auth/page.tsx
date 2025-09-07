@@ -1,6 +1,4 @@
 "use client"
-
-import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -17,7 +15,6 @@ export default function AuthPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
-  const [isLoading, setIsLoading] = useState(false)
   const [referralCode, setReferralCode] = useState<string | null>(null)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
@@ -64,123 +61,6 @@ export default function AuthPage() {
     setSignInData((prev) => ({ ...prev, [field]: value }))
     if (error) setError("")
     if (success) setSuccess("")
-  }
-
-  const validateSignUp = () => {
-    if (
-      !signUpData.firstName ||
-      !signUpData.lastName ||
-      !signUpData.email ||
-      !signUpData.password ||
-      !signUpData.confirmPassword
-    ) {
-      setError("Please fill in all required fields")
-      return false
-    }
-
-    if (signUpData.password !== signUpData.confirmPassword) {
-      setError("Passwords don't match")
-      return false
-    }
-
-    if (signUpData.password.length < 6) {
-      setError("Password must be at least 6 characters long")
-      return false
-    }
-
-    return true
-  }
-
-  const validateSignIn = () => {
-    if (!signInData.email || !signInData.password) {
-      setError("Please fill in all required fields")
-      return false
-    }
-    return true
-  }
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log("[v0] Sign up form submitted")
-
-    if (!validateSignUp()) return
-
-    setIsLoading(true)
-    setError("")
-    setSuccess("")
-
-    try {
-      console.log("[v0] Starting signup with hCaptcha...")
-
-      // Execute hCaptcha
-      const token = await (window as any).hcaptcha.execute("1deae092-5492-4c8a-94f4-1f86ae6c28ec", { async: true })
-
-      if (!token) {
-        setError("Please complete the security verification")
-        return
-      }
-
-      const { error } = await supabase.auth.signUp({
-        email: signUpData.email,
-        password: signUpData.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          data: {
-            first_name: signUpData.firstName,
-            last_name: signUpData.lastName,
-          },
-        },
-      })
-
-      if (error) {
-        console.error("[v0] Signup error:", error)
-        setError(error.message)
-        return
-      }
-
-      console.log("[v0] Signup successful")
-      router.push("/check-your-email")
-    } catch (error) {
-      console.error("[v0] Auth error:", error)
-      setError("Something went wrong. Please try again.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log("[v0] Sign in form submitted")
-
-    if (!validateSignIn()) return
-
-    setIsLoading(true)
-    setError("")
-    setSuccess("")
-
-    try {
-      console.log("[v0] Starting login process...")
-
-      const { error } = await supabase.auth.signInWithPassword({
-        email: signInData.email,
-        password: signInData.password,
-      })
-
-      if (error) {
-        console.error("[v0] Login error:", error)
-        setError(error.message)
-        return
-      }
-
-      console.log("[v0] Login successful")
-      const next = searchParams.get("next")
-      router.push(next || "/plans")
-    } catch (error) {
-      console.error("[v0] Auth error:", error)
-      setError("Something went wrong. Please try again.")
-    } finally {
-      setIsLoading(false)
-    }
   }
 
   return (
@@ -240,7 +120,7 @@ export default function AuthPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <form id="signupForm" onSubmit={handleSignUp} className="space-y-4">
+              <form id="signupForm" className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="firstName">First Name</Label>
@@ -254,7 +134,6 @@ export default function AuthPage() {
                         onChange={(e) => handleSignUpChange("firstName", e.target.value)}
                         className="pl-10 border-yellow-200 focus:border-yellow-400"
                         required
-                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -270,7 +149,6 @@ export default function AuthPage() {
                         onChange={(e) => handleSignUpChange("lastName", e.target.value)}
                         className="pl-10 border-yellow-200 focus:border-yellow-400"
                         required
-                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -288,7 +166,6 @@ export default function AuthPage() {
                       onChange={(e) => handleSignUpChange("email", e.target.value)}
                       className="pl-10 border-yellow-200 focus:border-yellow-400"
                       required
-                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -305,7 +182,6 @@ export default function AuthPage() {
                       onChange={(e) => handleSignUpChange("password", e.target.value)}
                       className="pl-10 border-yellow-200 focus:border-yellow-400"
                       required
-                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -322,24 +198,15 @@ export default function AuthPage() {
                       onChange={(e) => handleSignUpChange("confirmPassword", e.target.value)}
                       className="pl-10 border-yellow-200 focus:border-yellow-400"
                       required
-                      disabled={isLoading}
                     />
                   </div>
                 </div>
 
                 <Button
                   type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white disabled:opacity-50"
+                  className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white"
                 >
-                  {isLoading ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Creating Account...
-                    </div>
-                  ) : (
-                    "Create Account"
-                  )}
+                  Create Account
                 </Button>
               </form>
 
@@ -365,7 +232,7 @@ export default function AuthPage() {
               <p className="text-gray-600 mt-2">Welcome back to Write Our Heart</p>
             </CardHeader>
             <CardContent>
-              <form id="signinForm" onSubmit={handleSignIn} className="space-y-4">
+              <form id="signinForm" className="space-y-4">
                 <div>
                   <Label htmlFor="emailLogin">Email</Label>
                   <div className="relative">
@@ -378,7 +245,6 @@ export default function AuthPage() {
                       onChange={(e) => handleSignInChange("email", e.target.value)}
                       className="pl-10 border-yellow-200 focus:border-yellow-400"
                       required
-                      disabled={isLoading}
                     />
                   </div>
                 </div>
@@ -395,24 +261,15 @@ export default function AuthPage() {
                       onChange={(e) => handleSignInChange("password", e.target.value)}
                       className="pl-10 border-yellow-200 focus:border-yellow-400"
                       required
-                      disabled={isLoading}
                     />
                   </div>
                 </div>
 
                 <Button
                   type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-gradient-to-r from-blue-400 to-purple-500 hover:from-blue-500 hover:to-purple-600 text-white disabled:opacity-50"
+                  className="w-full bg-gradient-to-r from-blue-400 to-purple-500 hover:from-blue-500 hover:to-purple-600 text-white"
                 >
-                  {isLoading ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Signing In...
-                    </div>
-                  ) : (
-                    "Sign In"
-                  )}
+                  Sign In
                 </Button>
               </form>
 
