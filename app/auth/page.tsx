@@ -428,27 +428,40 @@ export default function AuthPage() {
           </Card>
         </div>
 
+        {/* Custom Code/Embed Block A - Scripts and Widget */}
         <div className="mt-8">
           <Card className="bg-gray-50 border border-gray-200">
             <CardHeader>
-              <CardTitle className="text-lg text-gray-700">Custom Code/Embed</CardTitle>
+              <CardTitle className="text-lg text-gray-700">Custom Code/Embed - Block A</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="bg-white p-4 rounded border">
                 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
                 <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+
                 <div
                   className="h-captcha"
                   data-sitekey="1deae092-5492-4c8a-94f4-1f86ae6c28ec"
                   data-size="invisible"
                 ></div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
+        {/* Custom Code/Embed Block B - Auth Logic */}
+        <div className="mt-4">
+          <Card className="bg-gray-50 border border-gray-200">
+            <CardHeader>
+              <CardTitle className="text-lg text-gray-700">Custom Code/Embed - Block B</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-white p-4 rounded border">
                 <script
                   dangerouslySetInnerHTML={{
                     __html: `
-                    // REPLACE THESE 3 VALUES
-                    const SUPABASE_URL = "${process.env.NEXT_PUBLIC_SUPABASE_URL}";
-                    const SUPABASE_ANON_KEY = "${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}";
+                    const SUPABASE_URL = "https://cloyucntnunxptefkhnr.supabase.co";
+                    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsb3l1Y250bnVueHB0ZWZraG5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwOTg2MDIsImV4cCI6MjA3MjY3NDYwMn0.L8fq9-mqJx2Xk_BEOk0wk9voGCXgp5oRvvJT3gtx2Sg";
                     const HCAPTCHA_SITE_KEY = "1deae092-5492-4c8a-94f4-1f86ae6c28ec";
 
                     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -508,6 +521,7 @@ export default function AuthPage() {
                       try {
                         let { error } = await supabase.auth.signInWithPassword({ email, password: pass });
 
+                        // If challenged, run captcha and retry
                         if (error && /captcha/i.test(error.message)) {
                           const token = await window.hcaptcha.execute(HCAPTCHA_SITE_KEY, { async: true });
                           const res = await supabase.auth.signInWithPassword({
@@ -523,7 +537,7 @@ export default function AuthPage() {
                       }
                     }
 
-                    // Hook up your existing form buttons by ID
+                    // Attach to your forms by ID
                     document.getElementById('signupForm')?.addEventListener('submit', handleSignUp);
                     document.getElementById('signinForm')?.addEventListener('submit', handleSignIn);
                   `,
