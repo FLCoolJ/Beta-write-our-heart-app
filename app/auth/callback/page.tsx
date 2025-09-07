@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 
 export default function AuthCallback() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
   useEffect(() => {
@@ -19,12 +20,12 @@ export default function AuthCallback() {
       }
 
       if (data.session) {
-        const hasSubscription = data.session.user.user_metadata?.subscription_status === "active"
-
-        if (hasSubscription) {
-          router.push("/my-hearts")
+        const next = searchParams.get("next")
+        if (next) {
+          router.push(next)
         } else {
-          router.push("/select-plan")
+          const hasSubscription = data.session.user.user_metadata?.subscription_status === "active"
+          router.push(hasSubscription ? "/dashboard" : "/plans")
         }
       } else {
         router.push("/auth")
@@ -32,13 +33,13 @@ export default function AuthCallback() {
     }
 
     handleAuthCallback()
-  }, [router, supabase])
+  }, [router, supabase, searchParams])
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50">
       <div className="text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-500 mx-auto mb-4"></div>
-        <p>Completing authentication...</p>
+        <p className="text-gray-600">Completing authentication...</p>
       </div>
     </div>
   )

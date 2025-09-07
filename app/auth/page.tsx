@@ -31,6 +31,31 @@ export default function AuthPage() {
   })
 
   useEffect(() => {
+    // Load hCaptcha script
+    const script = document.createElement("script")
+    script.src = "https://js.hcaptcha.com/1/api.js"
+    script.async = true
+    script.defer = true
+    document.head.appendChild(script)
+
+    // Check if user is already logged in
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const next = searchParams.get("next")
+      if (session) {
+        router.push(next || "/dashboard")
+      }
+    }
+    checkSession()
+
+    return () => {
+      document.head.removeChild(script)
+    }
+  }, [])
+
+  useEffect(() => {
     const urlMode = searchParams.get("mode")
     if (urlMode === "signin") {
       setMode("signin")
@@ -92,7 +117,7 @@ export default function AuthPage() {
       if (mode === "login") {
         console.log("[v0] Starting login process...")
 
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
         })
@@ -104,40 +129,30 @@ export default function AuthPage() {
         }
 
         console.log("[v0] Login successful")
-        setSuccess("Welcome back! Redirecting...")
-
-        const hasSubscription = data.user?.user_metadata?.subscription_status === "active"
-        console.log("[v0] Has subscription:", hasSubscription)
-
-        const redirectPath = hasSubscription ? "/my-hearts" : "/select-plan"
-
-        setTimeout(() => {
-          try {
-            router.push(redirectPath)
-          } catch (error) {
-            console.warn("[v0] Router push failed, using window.location")
-            if (typeof window !== "undefined") {
-              window.location.href = redirectPath
-            }
-          }
-        }, 1500)
+        const next = searchParams.get("next")
+        router.push(next || "/plans")
       } else {
-        console.log("[v0] Starting signup process...")
+        console.log("[v0] Starting signup with hCaptcha...")
 
-        const { data, error } = await supabase.auth.signUp({
+        // Execute hCaptcha
+        const token = await (window as any).hcaptcha.execute("1deae092-5492-4c8a-94f4-1f86ae6c28ec", { async: true })
+
+        if (!token) {
+          setError("Please complete the security verification")
+          return
+        }
+
+        const { error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
-            emailRedirectTo: "https://beta.writeourheart.com/auth/callback",
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
             data: {
               first_name: formData.firstName,
               last_name: formData.lastName,
-              referral_code: referralCode,
             },
           },
         })
-
-        console.log("[v0] Signup response:", { data, error })
 
         if (error) {
           console.error("[v0] Signup error:", error)
@@ -145,16 +160,8 @@ export default function AuthPage() {
           return
         }
 
-        console.log("[v0] Signup successful, user created:", data.user?.id)
-        setSuccess("Account created! Check your email to verify your account.")
-
-        setFormData({
-          email: "",
-          password: "",
-          confirmPassword: "",
-          firstName: "",
-          lastName: "",
-        })
+        console.log("[v0] Signup successful")
+        router.push("/check-your-email")
       }
     } catch (error) {
       console.error("[v0] Auth error:", error)
@@ -327,6 +334,16 @@ export default function AuthPage() {
                       disabled={isLoading}
                     />
                   </div>
+                </div>
+              )}
+
+              {mode === "signin" && (
+                <div className="flex justify-center">
+                  <div
+                    className="h-captcha"
+                    data-sitekey="1deae092-5492-4c8a-94f4-1f86ae6c28ec"
+                    data-size="invisible"
+                  ></div>
                 </div>
               )}
 
