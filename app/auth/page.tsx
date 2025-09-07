@@ -428,122 +428,121 @@ export default function AuthPage() {
           </Card>
         </div>
 
-        {/* Custom Code/Embed Block A - Scripts and Widget */}
         <div className="mt-8">
           <Card className="bg-gray-50 border border-gray-200">
             <CardHeader>
               <CardTitle className="text-lg text-gray-700">Custom Code/Embed - Block A</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="bg-white p-4 rounded border">
-                <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-                <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
-
-                <div
-                  className="h-captcha"
-                  data-sitekey="1deae092-5492-4c8a-94f4-1f86ae6c28ec"
-                  data-size="invisible"
-                ></div>
-              </div>
+              <div
+                className="bg-white p-4 rounded border"
+                dangerouslySetInnerHTML={{
+                  __html: `
+                    <!-- Supabase SDK + hCaptcha loader -->
+                    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+                    <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+                    <!-- Invisible hCaptcha widget -->
+                    <div class="h-captcha" data-sitekey="1deae092-5492-4c8a-94f4-1f86ae6c28ec" data-size="invisible"></div>
+                  `,
+                }}
+              />
             </CardContent>
           </Card>
         </div>
 
-        {/* Custom Code/Embed Block B - Auth Logic */}
         <div className="mt-4">
           <Card className="bg-gray-50 border border-gray-200">
             <CardHeader>
               <CardTitle className="text-lg text-gray-700">Custom Code/Embed - Block B</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="bg-white p-4 rounded border">
-                <script
-                  dangerouslySetInnerHTML={{
-                    __html: `
-                    const SUPABASE_URL = "https://cloyucntnunxptefkhnr.supabase.co";
-                    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsb3l1Y250bnVueHB0ZWZraG5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwOTg2MDIsImV4cCI6MjA3MjY3NDYwMn0.L8fq9-mqJx2Xk_BEOk0wk9voGCXgp5oRvvJT3gtx2Sg";
-                    const HCAPTCHA_SITE_KEY = "1deae092-5492-4c8a-94f4-1f86ae6c28ec";
+              <div
+                className="bg-white p-4 rounded border"
+                dangerouslySetInnerHTML={{
+                  __html: `
+                    <script>
+                      const SUPABASE_URL = "https://cloyucntnunxptefkhnr.supabase.co";
+                      const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsb3l1Y250bnVueHB0ZWZraG5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwOTg2MDIsImV4cCI6MjA3MjY3NDYwMn0.L8fq9-mqJx2Xk_BEOk0wk9voGCXgp5oRvvJT3gtx2Sg";
+                      const HCAPTCHA_SITE_KEY = "1deae092-5492-4c8a-94f4-1f86ae6c28ec";
 
-                    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-                    function getNextParam() {
-                      const u = new URL(window.location.href);
-                      return u.searchParams.get('next') || '/plans';
-                    }
-
-                    function showError(err) {
-                      const msg = typeof err === 'string' ? err : (err?.message || 'Unexpected error');
-                      const el = document.getElementById('auth-error');
-                      if (el) el.textContent = msg;
-                      console.error(msg, err);
-                    }
-
-                    async function handleSignUp(e) {
-                      e.preventDefault();
-                      const first = document.getElementById('firstName')?.value?.trim();
-                      const last  = document.getElementById('lastName')?.value?.trim();
-                      const email = document.getElementById('email')?.value?.trim();
-                      const pass  = document.getElementById('password')?.value;
-                      const confirm = document.getElementById('confirm')?.value;
-
-                      if (!email || !pass) return showError('Email and password are required.');
-                      if (pass !== confirm) return showError('Passwords do not match.');
-
-                      try {
-                        if (!window.hcaptcha) return showError('Captcha failed to load.');
-                        const captchaToken = await window.hcaptcha.execute(HCAPTCHA_SITE_KEY, { async: true });
-                        if (!captchaToken) return showError('Captcha token missing.');
-
-                        const next = getNextParam();
-                        const { error } = await supabase.auth.signUp({
-                          email,
-                          password: pass,
-                          options: {
-                            emailRedirectTo: \`\${window.location.origin}/auth/callback?next=\${encodeURIComponent(next)}\`,
-                            data: { first_name: first, last_name: last },
-                            captchaToken
-                          }
-                        });
-                        if (error) return showError(error);
-
-                        window.location.assign('/check-your-email');
-                      } catch (err) {
-                        showError(err);
+                      function getNextParam() {
+                        const u = new URL(window.location.href);
+                        return u.searchParams.get('next') || '/plans';
                       }
-                    }
 
-                    async function handleSignIn(e) {
-                      e.preventDefault();
-                      const email = document.getElementById('emailLogin')?.value?.trim();
-                      const pass  = document.getElementById('passwordLogin')?.value;
-                      const next = getNextParam();
+                      function showError(err) {
+                        const msg = typeof err === 'string' ? err : (err?.message || 'Unexpected error');
+                        const el = document.getElementById('auth-error');
+                        if (el) el.textContent = msg;
+                        console.error(msg, err);
+                      }
 
-                      try {
-                        let { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+                      async function handleSignUp(e) {
+                        e.preventDefault();
+                        const first = document.getElementById('firstName')?.value?.trim();
+                        const last  = document.getElementById('lastName')?.value?.trim();
+                        const email = document.getElementById('email')?.value?.trim();
+                        const pass  = document.getElementById('password')?.value;
+                        const confirm = document.getElementById('confirm')?.value;
 
-                        // If challenged, run captcha and retry
-                        if (error && /captcha/i.test(error.message)) {
-                          const token = await window.hcaptcha.execute(HCAPTCHA_SITE_KEY, { async: true });
-                          const res = await supabase.auth.signInWithPassword({
-                            email, password: pass, options: { captchaToken: token }
+                        if (!email || !pass) return showError('Email and password are required.');
+                        if (pass !== confirm) return showError('Passwords do not match.');
+
+                        try {
+                          if (!window.hcaptcha) return showError('Captcha failed to load.');
+                          const captchaToken = await window.hcaptcha.execute(HCAPTCHA_SITE_KEY, { async: true });
+                          if (!captchaToken) return showError('Captcha token missing.');
+
+                          const next = getNextParam();
+                          const { error } = await supabase.auth.signUp({
+                            email,
+                            password: pass,
+                            options: {
+                              emailRedirectTo: \`\${window.location.origin}/auth/callback?next=\${encodeURIComponent(next)}\`,
+                              data: { first_name: first, last_name: last },
+                              captchaToken
+                            }
                           });
-                          error = res.error;
+                          if (error) return showError(error);
+
+                          window.location.assign('/check-your-email');
+                        } catch (err) {
+                          showError(err);
                         }
-                        if (error) return showError(error);
-
-                        window.location.assign(next);
-                      } catch (err) {
-                        showError(err);
                       }
-                    }
 
-                    // Attach to your forms by ID
-                    document.getElementById('signupForm')?.addEventListener('submit', handleSignUp);
-                    document.getElementById('signinForm')?.addEventListener('submit', handleSignIn);
+                      async function handleSignIn(e) {
+                        e.preventDefault();
+                        const email = document.getElementById('emailLogin')?.value?.trim();
+                        const pass  = document.getElementById('passwordLogin')?.value;
+                        const next = getNextParam();
+
+                        try {
+                          let { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+
+                          if (error && /captcha/i.test(error.message)) {
+                            const token = await window.hcaptcha.execute(HCAPTCHA_SITE_KEY, { async: true });
+                            const res = await supabase.auth.signInWithPassword({
+                              email, password: pass, options: { captchaToken: token }
+                            });
+                            error = res.error;
+                          }
+                          if (error) return showError(error);
+
+                          window.location.assign(next);
+                        } catch (err) {
+                          showError(err);
+                        }
+                      }
+
+                      document.getElementById('signupForm')?.addEventListener('submit', handleSignUp);
+                      document.getElementById('signinForm')?.addEventListener('submit', handleSignIn);
+                    </script>
                   `,
-                  }}
-                />
-              </div>
+                }}
+              />
             </CardContent>
           </Card>
         </div>

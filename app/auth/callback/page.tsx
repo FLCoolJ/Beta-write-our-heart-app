@@ -51,38 +51,36 @@ export default function AuthCallback() {
             <CardTitle className="text-lg text-gray-700">Custom Code/Embed</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="bg-white p-4 rounded border">
-              <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-              <script
-                dangerouslySetInnerHTML={{
-                  __html: `
-                  const SUPABASE_URL = "${process.env.NEXT_PUBLIC_SUPABASE_URL}";
-                  const SUPABASE_ANON_KEY = "${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}";
-                  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-                  (async () => {
-                    const url = new URL(window.location.href);
-                    const code = url.searchParams.get('code');
-                    const next = url.searchParams.get('next') || '/dashboard';
-
-                    if (code) {
-                      const { error } = await supabase.auth.exchangeCodeForSession(code);
-                      if (error) {
-                        console.error('exchangeCodeForSession:', error.message);
-                        window.location.assign(\`/auth?next=\${encodeURIComponent(next)}\`);
-                        return;
+            <div
+              className="bg-white p-4 rounded border"
+              dangerouslySetInnerHTML={{
+                __html: `
+                  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+                  <script>
+                    const supabase = window.supabase.createClient(
+                      "https://cloyucntnunxptefkhnr.supabase.co",
+                      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsb3l1Y250bnVueHB0ZWZraG5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwOTg2MDIsImV4cCI6MjA3MjY3NDYwMn0.L8fq9-mqJx2Xk_BEOk0wk9voGCXgp5oRvvJT3gtx2Sg"
+                    );
+                    (async () => {
+                      const url = new URL(window.location.href);
+                      const code = url.searchParams.get('code');
+                      const next = url.searchParams.get('next') || '/dashboard';
+                      if (code) {
+                        const { error } = await supabase.auth.exchangeCodeForSession(code);
+                        if (error) {
+                          console.error('exchangeCodeForSession:', error.message);
+                          window.location.assign(\`/auth?next=\${encodeURIComponent(next)}\`);
+                          return;
+                        }
                       }
-                    }
-
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (session) window.location.assign(next);
-                    else window.location.assign(\`/auth?next=\${encodeURIComponent(next)}\`);
-                  })();
+                      const { data: { session } } = await supabase.auth.getSession();
+                      if (session) window.location.assign(next);
+                      else window.location.assign(\`/auth?next=\${encodeURIComponent(next)}\`);
+                    })();
+                  </script>
                 `,
-                }}
-              />
-            </div>
+              }}
+            />
           </CardContent>
         </Card>
       </div>
