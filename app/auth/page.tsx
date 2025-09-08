@@ -204,6 +204,7 @@ export default function AuthPage() {
                   id="signupBtn"
                   type="button"
                   className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white"
+                  onClick={() => (window as any).__handleSignUp?.()}
                 >
                   Create Account
                 </Button>
@@ -268,6 +269,7 @@ export default function AuthPage() {
                   id="signinBtn"
                   type="button"
                   className="w-full bg-gradient-to-r from-blue-400 to-purple-500 hover:from-blue-500 hover:to-purple-600 text-white"
+                  onClick={() => (window as any).__handleSignIn?.()}
                 >
                   Sign In
                 </Button>
@@ -287,6 +289,160 @@ export default function AuthPage() {
 
         <div className="h-captcha" data-sitekey="1deae092-5492-4c8a-94f4-1f86ae6c28ec" data-size="invisible"></div>
       </div>
+
+      <div
+        dangerouslySetInnerHTML={{
+          __html: `
+            <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.js" defer></script>
+            <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+            
+            <script>
+              const SUPABASE_URL = 'https://cloyucntnunxptefkhnr.supabase.co';
+              const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsb3l1Y250bnVueHB0ZWZraG5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwOTg2MDIsImV4cCI6MjA3MjY3NDYwMn0.L8fq9-mqJx2Xk_BEOk0wk9voGCXgp5oRvvJT3gtx2Sg';
+              const HCAPTCHA_SITE_KEY = '1deae092-5492-4c8a-94f4-1f86ae6c28ec';
+
+              function waitForReady(callback) {
+                if (document.readyState === 'complete' && window.supabase && window.hcaptcha) {
+                  callback();
+                } else {
+                  setTimeout(() => waitForReady(callback), 100);
+                }
+              }
+
+              function setMsg(text, isError = true) {
+                const el = document.getElementById('auth-error');
+                if (el) {
+                  el.innerHTML = text;
+                  el.style.color = isError ? '#c00' : '#0a0';
+                }
+              }
+
+              function isAlreadyRegistered(error) {
+                return error && (
+                  error.message?.includes('already registered') ||
+                  error.message?.includes('already been registered') ||
+                  error.message?.includes('User already registered')
+                );
+              }
+
+              waitForReady(() => {
+                console.log('[auth] wired');
+                const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+                window.__handleSignUp = async () => {
+                  console.log('[auth] signUp clicked');
+                  setMsg('');
+                  
+                  const firstName = document.getElementById('firstName')?.value?.trim();
+                  const lastName = document.getElementById('lastName')?.value?.trim();
+                  const email = document.getElementById('email')?.value?.trim();
+                  const password = document.getElementById('password')?.value;
+                  const confirm = document.getElementById('confirm')?.value;
+
+                  if (!firstName || !lastName || !email || !password || !confirm) {
+                    setMsg('Please fill in all fields.');
+                    return;
+                  }
+
+                  if (password !== confirm) {
+                    setMsg('Passwords do not match.');
+                    return;
+                  }
+
+                  if (password.length < 6) {
+                    setMsg('Password must be at least 6 characters.');
+                    return;
+                  }
+
+                  try {
+                    console.log('[auth] executing hCaptcha...');
+                    const token = await new Promise((resolve, reject) => {
+                      window.hcaptcha.execute(HCAPTCHA_SITE_KEY, { async: true })
+                        .then(resolve)
+                        .catch(reject);
+                    });
+
+                    console.log('[auth] hCaptcha token received, calling Supabase...');
+                    const { data, error } = await supabase.auth.signUp({
+                      email,
+                      password,
+                      options: {
+                        data: {
+                          first_name: firstName,
+                          last_name: lastName,
+                        },
+                        captchaToken: token,
+                        emailRedirectTo: 'https://beta.writeourheart.com/auth/callback'
+                      }
+                    });
+
+                    if (error) {
+                      console.error('[auth] Supabase error:', error);
+                      if (isAlreadyRegistered(error)) {
+                        setMsg('That email is already registered. <a href="#signin" style="color:#00c;">Sign in</a>.');
+                      } else {
+                        setMsg(error.message || 'Sign up failed. Please try again.');
+                      }
+                      window.hcaptcha.reset();
+                      return;
+                    }
+
+                    console.log('[auth] Sign up successful:', data);
+                    setMsg('Account created! Check your email to verify your account.', false);
+                    
+                    // Clear form
+                    document.getElementById('firstName').value = '';
+                    document.getElementById('lastName').value = '';
+                    document.getElementById('email').value = '';
+                    document.getElementById('password').value = '';
+                    document.getElementById('confirm').value = '';
+
+                  } catch (error) {
+                    console.error('[auth] Error:', error);
+                    setMsg('Something went wrong. Please try again.');
+                    window.hcaptcha.reset();
+                  }
+                };
+
+                window.__handleSignIn = async () => {
+                  console.log('[auth] signIn clicked');
+                  setMsg('');
+                  
+                  const email = document.getElementById('emailLogin')?.value?.trim();
+                  const password = document.getElementById('passwordLogin')?.value;
+
+                  if (!email || !password) {
+                    setMsg('Please enter both email and password.');
+                    return;
+                  }
+
+                  try {
+                    console.log('[auth] calling Supabase signIn...');
+                    const { data, error } = await supabase.auth.signInWithPassword({
+                      email,
+                      password
+                    });
+
+                    if (error) {
+                      console.error('[auth] Sign in error:', error);
+                      setMsg(error.message || 'Sign in failed. Please check your credentials.');
+                      return;
+                    }
+
+                    console.log('[auth] Sign in successful:', data);
+                    const next = new URL(window.location.href).searchParams.get('next') || '/dashboard';
+                    window.location.assign(next);
+
+                  } catch (error) {
+                    console.error('[auth] Error:', error);
+                    setMsg('Something went wrong. Please try again.');
+                  }
+                };
+              });
+            </script>
+          `,
+        }}
+      />
     </div>
   )
 }
