@@ -82,11 +82,12 @@ export default function SelectPlanPage() {
             <CardHeader className="text-center">
               <CardTitle className="text-2xl font-bold text-gray-900">Whisper Plan</CardTitle>
               <div className="text-3xl font-bold text-yellow-600">$8.99/month</div>
+              <div className="text-sm text-gray-500 line-through">Launch: $11.99</div>
               <CardDescription className="text-gray-600">Perfect for close family</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-center mb-6">
-                <div className="text-lg font-semibold text-gray-900">2 cards/month</div>
+                <div className="text-lg font-semibold text-gray-900">2 Premium cards per month</div>
               </div>
 
               <div className="space-y-3">
@@ -132,11 +133,12 @@ export default function SelectPlanPage() {
             <CardHeader className="text-center">
               <CardTitle className="text-2xl font-bold text-gray-900">Legacy Plan</CardTitle>
               <div className="text-3xl font-bold text-yellow-600">$25.99/month</div>
+              <div className="text-sm text-gray-500 line-through">Launch: $34.99</div>
               <CardDescription className="text-gray-600">For the ultimate connector</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-center mb-6">
-                <div className="text-lg font-semibold text-gray-900">7 cards/month</div>
+                <div className="text-lg font-semibold text-gray-900">7 Premium cards per month</div>
               </div>
 
               <div className="space-y-3">

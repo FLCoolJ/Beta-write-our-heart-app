@@ -356,8 +356,6 @@ export default function AuthPage() {
             </CardContent>
           </Card>
         </div>
-
-        <div className="h-captcha" data-sitekey="1deae092-5492-4c8a-94f4-1f86ae6c28ec" data-size="invisible"></div>
       </div>
     </div>
   )

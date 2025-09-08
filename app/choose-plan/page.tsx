@@ -132,13 +132,14 @@ export default function ChoosePlanPage() {
               <div className="mt-4">
                 <span className="text-4xl font-bold">$8.99</span>
                 <span className="text-gray-600">/month</span>
+                <div className="text-sm text-gray-500 line-through">Launch: $11.99</div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-green-500" />
-                  <span>2 cards per month included</span>
+                  <span>2 Premium cards per month included</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-green-500" />
@@ -151,6 +152,14 @@ export default function ChoosePlanPage() {
                 <div className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-green-500" />
                   <span>Free shipping anywhere in US</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="h-5 w-5 text-green-500" />
+                  <span>Occasion reminders</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="h-5 w-5 text-green-500" />
+                  <span>Cards expire after 2 months</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-green-500" />
@@ -184,13 +193,14 @@ export default function ChoosePlanPage() {
               <div className="mt-4">
                 <span className="text-4xl font-bold">$25.99</span>
                 <span className="text-gray-600">/month</span>
+                <div className="text-sm text-gray-500 line-through">Launch: $34.99</div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-green-500" />
-                  <span className="font-semibold">7 cards per month included</span>
+                  <span className="font-semibold">7 Premium cards per month included</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-green-500" />
@@ -206,11 +216,19 @@ export default function ChoosePlanPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-green-500" />
-                  <span>Additional cards at $3.99 each</span>
+                  <span>Occasion reminders</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Check className="h-5 w-5 text-green-500" />
                   <span>Priority customer support</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="h-5 w-5 text-green-500" />
+                  <span>Cards expire after 2 months</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="h-5 w-5 text-green-500" />
+                  <span>Additional cards at $4.99 each</span>
                 </div>
               </div>
               <Button
