@@ -1,5 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
+import type React from "react"
+
 import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -18,6 +20,7 @@ export default function AuthPage() {
   const [referralCode, setReferralCode] = useState<string | null>(null)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const [loading, setLoading] = useState(false)
 
   const [signUpData, setSignUpData] = useState({
     firstName: "",
@@ -63,6 +66,71 @@ export default function AuthPage() {
     if (success) setSuccess("")
   }
 
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError("")
+
+    if (signUpData.password !== signUpData.confirmPassword) {
+      setError("Passwords do not match")
+      setLoading(false)
+      return
+    }
+
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: signUpData.email,
+        password: signUpData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(searchParams.get("next") || "/plans")}`,
+          data: {
+            first_name: signUpData.firstName,
+            last_name: signUpData.lastName,
+          },
+        },
+      })
+
+      if (error) {
+        if (error.message.includes("already registered")) {
+          setSignInData((prev) => ({ ...prev, email: signUpData.email }))
+          setError("That email is already registered. Please sign in below.")
+        } else {
+          setError(error.message)
+        }
+      } else {
+        router.push("/check-your-email")
+      }
+    } catch (err) {
+      setError("Something went wrong. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError("")
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: signInData.email,
+        password: signInData.password,
+      })
+
+      if (error) {
+        setError(error.message)
+      } else {
+        const next = searchParams.get("next") || "/plans"
+        router.push(next)
+      }
+    } catch (err) {
+      setError("Something went wrong. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50">
       <div className="bg-white/80 backdrop-blur-sm border-b border-yellow-200">
@@ -93,7 +161,11 @@ export default function AuthPage() {
           </div>
         )}
 
-        <p id="auth-error" style={{ color: "#c00", fontWeight: "600" }}></p>
+        {error && (
+          <Alert className="mb-6 border-red-200 bg-red-50">
+            <AlertDescription className="text-red-800">{error}</AlertDescription>
+          </Alert>
+        )}
 
         {success && (
           <Alert className="mb-6 border-green-200 bg-green-50">
@@ -118,7 +190,7 @@ export default function AuthPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <form id="signupForm" onSubmit={(e) => e.preventDefault()} className="space-y-4">
+              <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="firstName">First Name</Label>
@@ -201,12 +273,11 @@ export default function AuthPage() {
                 </div>
 
                 <Button
-                  id="signupBtn"
-                  type="button"
+                  type="submit"
+                  disabled={loading}
                   className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white"
-                  onClick={() => (window as any).__handleSignUp?.()}
                 >
-                  Create Account
+                  {loading ? "Creating Account..." : "Create Account"}
                 </Button>
               </form>
 
@@ -232,7 +303,7 @@ export default function AuthPage() {
               <p className="text-gray-600 mt-2">Welcome back to Write Our Heart</p>
             </CardHeader>
             <CardContent>
-              <form id="signinForm" onSubmit={(e) => e.preventDefault()} className="space-y-4">
+              <form onSubmit={handleSignIn} className="space-y-4">
                 <div>
                   <Label htmlFor="emailLogin">Email</Label>
                   <div className="relative">
@@ -266,12 +337,11 @@ export default function AuthPage() {
                 </div>
 
                 <Button
-                  id="signinBtn"
-                  type="button"
+                  type="submit"
+                  disabled={loading}
                   className="w-full bg-gradient-to-r from-blue-400 to-purple-500 hover:from-blue-500 hover:to-purple-600 text-white"
-                  onClick={() => (window as any).__handleSignIn?.()}
                 >
-                  Sign In
+                  {loading ? "Signing In..." : "Sign In"}
                 </Button>
               </form>
 
@@ -289,128 +359,6 @@ export default function AuthPage() {
 
         <div className="h-captcha" data-sitekey="1deae092-5492-4c8a-94f4-1f86ae6c28ec" data-size="invisible"></div>
       </div>
-
-      <div
-        dangerouslySetInnerHTML={{
-          __html: `
-            <!-- 0) PROVE this block runs -->
-            <script>
-              console.log("AUTH RAW BLOCK: running", new Date().toISOString());
-              window.alert && console.log("If you see this log, inline scripts are allowed here.");
-            </script>
-
-            <!-- 1) Load libs -->
-            <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.js" defer></script>
-            <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
-
-            <!-- 2) Auth wiring (runs after DOM) -->
-            <script>
-            document.addEventListener("DOMContentLoaded", function () {
-              // ***** FILL THESE THREE VALUES *****
-              const SUPABASE_URL = "https://cloyucntnunxptefkhnr.supabase.co";
-              const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsb3l1Y250bnVueHB0ZWZraG5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwOTg2MDIsImV4cCI6MjA3MjY3NDYwMn0.L8fq9-mqJx2Xk_BEOk0wk9voGCXgp5oRvvJT3gtx2Sg";
-              const HCAPTCHA_SITEKEY = "1deae092-5492-4c8a-94f4-1f86ae6c28ec";
-              // ***********************************
-
-              const log = (...a) => { try { console.log("[auth]", ...a); } catch {} };
-              const show = (m) => { const el = document.getElementById("auth-error"); if (el) el.textContent = m; else alert(m); };
-
-              // stop native submits no matter what
-              document.getElementById("signupForm")?.addEventListener("submit", e => e.preventDefault());
-              document.getElementById("signinForm")?.addEventListener("submit", e => e.preventDefault());
-
-              // verify libs
-              if (!window.supabase) { show("Supabase failed to load."); return; }
-              const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-              log("wired: DOM + supabase ok");
-
-              async function captchaToken() {
-                // ensure a widget exists
-                let w = document.querySelector(".h-captcha");
-                if (!w) {
-                  w = document.createElement("div");
-                  w.className = "h-captcha";
-                  w.style.display = "none";
-                  w.setAttribute("data-sitekey", HCAPTCHA_SITEKEY);
-                  w.setAttribute("data-size", "invisible");
-                  document.body.appendChild(w);
-                }
-                // wait for library
-                await new Promise(r => {
-                  if (window.hcaptcha) return r();
-                  const t = setInterval(() => { if (window.hcaptcha) { clearInterval(t); r(); } }, 50);
-                });
-                return await window.hcaptcha.execute(HCAPTCHA_SITEKEY, { async: true });
-              }
-
-              function nextUrl() {
-                const url = new URL(location.href);
-                return url.searchParams.get("next") || "/plans";
-              }
-
-              // expose for button onClick fallback
-              window.__handleSignUp = async function () {
-                log("signUp clicked");
-                const first = document.getElementById("firstName")?.value?.trim() || "";
-                const last = document.getElementById("lastName")?.value?.trim() || "";
-                const email = document.getElementById("email")?.value?.trim();
-                const pass = document.getElementById("password")?.value;
-                const conf = document.getElementById("confirm")?.value;
-                if (!email || !pass) return show("Email and password are required.");
-                if (pass !== conf) return show("Passwords do not match.");
-                try {
-                  const token = await captchaToken();
-                  const { error } = await supabaseClient.auth.signUp({
-                    email: email,
-                    password: pass,
-                    options: {
-                      emailRedirectTo: location.origin + "/auth/callback?next=" + encodeURIComponent(nextUrl()),
-                      data: { first_name: first, last_name: last },
-                      captchaToken: token
-                    }
-                  });
-                  if (error) {
-                    const message = (error.message || "").toLowerCase();
-                    if (message.includes("already") && message.includes("registered")) {
-                      const emailLogin = document.getElementById("emailLogin"); 
-                      if (emailLogin) emailLogin.value = email;
-                      return show("That email is already registered. Please sign in.");
-                    }
-                    return show(error.message || String(error));
-                  }
-                  location.assign("/check-your-email");
-                } catch (e) { show(e?.message || String(e)); }
-              };
-
-              window.__handleSignIn = async function () {
-                log("signIn clicked");
-                const email = document.getElementById("emailLogin")?.value?.trim();
-                const pass = document.getElementById("passwordLogin")?.value;
-                if (!email || !pass) return show("Email and password are required.");
-                try {
-                  let { error } = await supabaseClient.auth.signInWithPassword({ email: email, password: pass });
-                  if (error && /captcha/i.test(error.message)) {
-                    const token = await captchaToken();
-                    const res = await supabaseClient.auth.signInWithPassword({ 
-                      email: email, 
-                      password: pass, 
-                      options: { captchaToken: token } 
-                    });
-                    error = res.error;
-                  }
-                  if (error) return show(error.message || String(error));
-                  location.assign(nextUrl());
-                } catch (e) { show(e?.message || String(e)); }
-              };
-
-              // wire buttons (works even if form props change)
-              document.getElementById("signupBtn")?.addEventListener("click", () => window.__handleSignUp());
-              document.getElementById("signinBtn")?.addEventListener("click", () => window.__handleSignIn());
-            });
-            </script>
-          `,
-        }}
-      />
     </div>
   )
 }
