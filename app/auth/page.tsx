@@ -93,9 +93,7 @@ export default function AuthPage() {
           </div>
         )}
 
-        <p id="auth-error" style={{ color: "#c00" }}>
-          {error}
-        </p>
+        <p id="auth-error" style={{ color: "#c00", fontWeight: "600" }}></p>
 
         {success && (
           <Alert className="mb-6 border-green-200 bg-green-50">
@@ -120,7 +118,7 @@ export default function AuthPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <form id="signupForm" className="space-y-4">
+              <form id="signupForm" onSubmit={(e) => e.preventDefault()} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="firstName">First Name</Label>
@@ -203,7 +201,8 @@ export default function AuthPage() {
                 </div>
 
                 <Button
-                  type="submit"
+                  id="signupBtn"
+                  type="button"
                   className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white"
                 >
                   Create Account
@@ -232,7 +231,7 @@ export default function AuthPage() {
               <p className="text-gray-600 mt-2">Welcome back to Write Our Heart</p>
             </CardHeader>
             <CardContent>
-              <form id="signinForm" className="space-y-4">
+              <form id="signinForm" onSubmit={(e) => e.preventDefault()} className="space-y-4">
                 <div>
                   <Label htmlFor="emailLogin">Email</Label>
                   <div className="relative">
@@ -266,7 +265,8 @@ export default function AuthPage() {
                 </div>
 
                 <Button
-                  type="submit"
+                  id="signinBtn"
+                  type="button"
                   className="w-full bg-gradient-to-r from-blue-400 to-purple-500 hover:from-blue-500 hover:to-purple-600 text-white"
                 >
                   Sign In
@@ -289,76 +289,71 @@ export default function AuthPage() {
           dangerouslySetInnerHTML={{
             __html: `
               <!-- Supabase SDK + hCaptcha loader -->
-              <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
+              <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.js" defer></script>
               <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
               <!-- Invisible hCaptcha widget -->
               <div class="h-captcha" data-sitekey="1deae092-5492-4c8a-94f4-1f86ae6c28ec" data-size="invisible"></div>
               
               <script>
+                // Fill these with your values
                 const SUPABASE_URL = "https://cloyucntnunxptefkhnr.supabase.co";
                 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsb3l1Y250bnVueHB0ZWZraG5yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwOTg2MDIsImV4cCI6MjA3MjY3NDYwMn0.L8fq9-mqJx2Xk_BEOk0wk9voGCXgp5oRvvJT3gtx2Sg";
                 const HCAPTCHA_SITE_KEY = "1deae092-5492-4c8a-94f4-1f86ae6c28ec";
 
-                function initializeAuth() {
+                // Wait for DOM + Supabase + hCaptcha before wiring anything
+                function ready(fn) {
+                  if (document.readyState !== "loading") fn();
+                  else document.addEventListener("DOMContentLoaded", fn);
+                }
+
+                ready(() => {
                   if (!window.supabase) {
-                    console.log('[v0] Waiting for Supabase to load...');
-                    setTimeout(initializeAuth, 100);
+                    console.error("Supabase SDK not loaded");
+                    document.getElementById('auth-error').textContent = "Supabase failed to load.";
                     return;
                   }
-
                   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                  console.log('[v0] Supabase client initialized');
 
-                  function getNextParam() {
+                  const signupForm = document.getElementById('signupForm');
+                  const signinForm = document.getElementById('signinForm');
+                  const signupBtn  = document.getElementById('signupBtn');
+                  const signinBtn  = document.getElementById('signinBtn');
+
+                  // hard stop any default submits even if buttons change later
+                  signupForm?.addEventListener('submit', e => e.preventDefault());
+                  signinForm?.addEventListener('submit', e => e.preventDefault());
+
+                  function showError(err) {
+                    const msg = typeof err === 'string' ? err : (err?.message || 'Unexpected error');
+                    console.error(msg, err);
+                    const el = document.getElementById('auth-error');
+                    if (el) el.textContent = msg;
+                  }
+
+                  async function getCaptchaToken() {
+                    // wait until the widget is present
+                    if (!window.hcaptcha) {
+                      await new Promise(r => {
+                        const t = setInterval(() => {
+                          if (window.hcaptcha) { clearInterval(t); r(); }
+                        }, 100);
+                      });
+                    }
+                    const token = await window.hcaptcha.execute(HCAPTCHA_SITE_KEY, { async: true });
+                    return token;
+                  }
+
+                  function getNext() {
                     const u = new URL(window.location.href);
                     return u.searchParams.get('next') || '/plans';
                   }
 
-                  function showError(err) {
-                    const msg = typeof err === 'string' ? err : (err?.message || 'Unexpected error');
-                    const el = document.getElementById('auth-error');
-                    if (el) el.textContent = msg;
-                    console.error('[v0] Auth error:', msg, err);
-                  }
-
-                  async function getCaptchaToken() {
-                    console.log('[v0] Getting captcha token...');
-                    // wait until widget is rendered
-                    await new Promise((resolve) => {
-                      if (window.hcaptcha && document.querySelector('.h-captcha')) return resolve();
-                      const t = setInterval(() => {
-                        if (window.hcaptcha && document.querySelector('.h-captcha')) {
-                          clearInterval(t); resolve();
-                        }
-                      }, 100);
-                    });
-                    // get a fresh token every submit
-                    const token = await window.hcaptcha.execute(HCAPTCHA_SITE_KEY, { async: true });
-                    console.log('[v0] Captcha token received:', token ? 'YES' : 'NO');
-                    return token;
-                  }
-
-                  function isAlreadyRegistered(error) {
-                    const m = (error?.message || "").toLowerCase();
-                    return m.includes("already registered") || m.includes("user already exists") || m.includes("duplicate key");
-                  }
-
-                  function isCaptchaError(error) {
-                    return /captcha/i.test(error?.message || "");
-                  }
-
-                  async function handleSignUp(e) {
-                    console.log('[v0] Sign up form submitted');
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
+                  async function handleSignUp() {
                     const first = document.getElementById('firstName')?.value?.trim();
                     const last  = document.getElementById('lastName')?.value?.trim();
                     const email = document.getElementById('email')?.value?.trim();
                     const pass  = document.getElementById('password')?.value;
                     const confirm = document.getElementById('confirm')?.value;
-
-                    console.log('[v0] Form data:', { first, last, email, hasPassword: !!pass, hasConfirm: !!confirm });
 
                     if (!email || !pass) return showError('Email and password are required.');
                     if (pass !== confirm) return showError('Passwords do not match.');
@@ -367,98 +362,59 @@ export default function AuthPage() {
                       const captchaToken = await getCaptchaToken();
                       if (!captchaToken) return showError('Captcha token missing.');
 
-                      console.log('[v0] Calling Supabase signUp...');
-                      const next = getNextParam();
+                      const next = getNext();
                       const { error } = await supabase.auth.signUp({
-                        email,
-                        password: pass,
+                        email, password: pass,
                         options: {
-                          emailRedirectTo: \`\${window.location.origin}/auth/callback?next=\${encodeURIComponent(next)}\`,
+                          emailRedirectTo: \`\${location.origin}/auth/callback?next=\${encodeURIComponent(next)}\`,
                           data: { first_name: first, last_name: last },
                           captchaToken
                         }
                       });
 
                       if (error) {
-                        console.log('[v0] Supabase error:', error);
-                        if (isAlreadyRegistered(error)) {
-                          const signInEmail = document.getElementById('emailLogin');
-                          if (signInEmail) signInEmail.value = email;
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        const m = (error.message || '').toLowerCase();
+                        if (m.includes('already') && m.includes('registered')) {
+                          document.getElementById('emailLogin').value = email;
                           return showError('That email is already registered. Please sign in.');
                         }
-                        if (isCaptchaError(error)) {
-                          return showError('Captcha failed. Please try again.');
-                        }
-                        return showError(error.message || error);
+                        return showError(error);
                       }
-
-                      console.log('[v0] Sign up successful, redirecting to check email');
-                      window.location.assign('/check-your-email');
-                    } catch (err) {
-                      console.log('[v0] Unexpected error:', err);
-                      showError(err);
+                      // success
+                      location.assign('/check-your-email');
+                    } catch (e) {
+                      showError(e);
                     }
                   }
 
-                  async function handleSignIn(e) {
-                    console.log('[v0] Sign in form submitted');
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
+                  async function handleSignIn() {
                     const email = document.getElementById('emailLogin')?.value?.trim();
                     const pass  = document.getElementById('passwordLogin')?.value;
-                    const next = getNextParam();
-                    
-                    console.log('[v0] Sign in data:', { email, hasPassword: !!pass });
-                    
+                    const next = getNext();
                     try {
                       let { error } = await supabase.auth.signInWithPassword({ email, password: pass });
 
-                      if (error && isCaptchaError(error)) {
-                        console.log('[v0] Captcha required for sign in, getting token...');
+                      if (error && /captcha/i.test(error.message)) {
                         const token = await getCaptchaToken();
                         const res = await supabase.auth.signInWithPassword({
                           email, password: pass, options: { captchaToken: token }
                         });
                         error = res.error;
                       }
-                      if (error) {
-                        console.log('[v0] Sign in error:', error);
-                        return showError(error.message || error);
-                      }
+                      if (error) return showError(error);
 
-                      console.log('[v0] Sign in successful, redirecting to:', next);
-                      window.location.assign(next);
-                    } catch (err) {
-                      console.log('[v0] Sign in unexpected error:', err);
-                      showError(err);
+                      location.assign(next);
+                    } catch (e) {
+                      showError(e);
                     }
                   }
 
-                  const signupForm = document.getElementById('signupForm');
-                  const signinForm = document.getElementById('signinForm');
-                  
-                  if (signupForm) {
-                    signupForm.addEventListener('submit', handleSignUp);
-                    console.log('[v0] Sign up form listener added');
-                  } else {
-                    console.log('[v0] Sign up form not found');
-                  }
-                  
-                  if (signinForm) {
-                    signinForm.addEventListener('submit', handleSignIn);
-                    console.log('[v0] Sign in form listener added');
-                  } else {
-                    console.log('[v0] Sign in form not found');
-                  }
-                }
+                  // Wire click handlers (no reliance on submit)
+                  signupBtn?.addEventListener('click', handleSignUp);
+                  signinBtn?.addEventListener('click', handleSignIn);
 
-                if (document.readyState === 'loading') {
-                  document.addEventListener('DOMContentLoaded', initializeAuth);
-                } else {
-                  initializeAuth();
-                }
+                  console.log('[auth] handlers wired');
+                });
               </script>
             `,
           }}
