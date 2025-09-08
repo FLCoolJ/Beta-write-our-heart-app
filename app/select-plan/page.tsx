@@ -47,8 +47,7 @@ export default function SelectPlanPage() {
     setSelectedPlan(planId)
 
     try {
-      sessionStorage.setItem("selectedPlan", planId)
-      router.push("/choose-plan")
+      router.push(`/checkout?plan=${planId}`)
     } catch (error) {
       console.error("Plan selection error:", error)
       setIsLoading(false)

@@ -36,7 +36,6 @@ export default function CheckoutPage() {
   const handlePayment = async () => {
     setIsLoading(true)
 
-    // Simulate payment processing
     setTimeout(async () => {
       // Update user metadata with subscription status
       const {
@@ -56,8 +55,18 @@ export default function CheckoutPage() {
   }
 
   const planDetails = {
-    WHISPER: { name: "Whisper", price: "$29", features: "50 cards, Premium templates" },
-    LEGACY: { name: "Legacy", price: "$49", features: "Unlimited cards, All features" },
+    whisper: {
+      name: "Whisper",
+      price: "$8.99/month",
+      launchPrice: "$11.99",
+      features: "2 Premium cards per month, US Postage included, Personalized poetry",
+    },
+    legacy: {
+      name: "Legacy",
+      price: "$25.99/month",
+      launchPrice: "$34.99",
+      features: "7 Premium cards per month, US Postage included, Priority support",
+    },
   }
 
   const currentPlan = plan ? planDetails[plan as keyof typeof planDetails] : null
@@ -68,7 +77,7 @@ export default function CheckoutPage() {
         <div className="text-center">
           <p className="text-gray-600 mb-4">No plan selected</p>
           <Button asChild>
-            <Link href="/plans">Choose a Plan</Link>
+            <Link href="/select-plan">Choose a Plan</Link>
           </Button>
         </div>
       </div>
@@ -80,7 +89,7 @@ export default function CheckoutPage() {
       <div className="bg-white/80 backdrop-blur-sm border-b border-yellow-200">
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/plans" className="flex items-center gap-2 text-gray-600 hover:text-yellow-600">
+            <Link href="/select-plan" className="flex items-center gap-2 text-gray-600 hover:text-yellow-600">
               <ArrowLeft className="w-4 h-4" />
               Back to Plans
             </Link>
@@ -108,7 +117,8 @@ export default function CheckoutPage() {
               </div>
               <p className="text-sm text-gray-600 mb-3">{currentPlan.features}</p>
               <div className="text-2xl font-bold text-yellow-600">{currentPlan.price}</div>
-              <p className="text-xs text-gray-500">One-time payment • Lifetime access</p>
+              <p className="text-xs text-gray-500 line-through">Launch: {currentPlan.launchPrice}</p>
+              <p className="text-xs text-gray-500 mt-1">Monthly subscription • Cancel anytime</p>
             </div>
 
             <div className="space-y-4">
@@ -132,7 +142,7 @@ export default function CheckoutPage() {
                     Processing Payment...
                   </div>
                 ) : (
-                  `Pay ${currentPlan.price}`
+                  `Subscribe for ${currentPlan.price}`
                 )}
               </Button>
             </div>
