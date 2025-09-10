@@ -51,9 +51,17 @@ export async function middleware(request: NextRequest) {
     "/card-production",
     "/select-plan",
     "/choose-plan",
+    "/dashboard", // Added dashboard to protected routes
+    "/checkout", // Added checkout to protected routes
   ]
 
-  const subscriptionRequiredRoutes = ["/my-hearts", "/add-heart", "/personalize-message", "/card-production"]
+  const subscriptionRequiredRoutes = [
+    "/my-hearts",
+    "/add-heart",
+    "/personalize-message",
+    "/card-production",
+    "/dashboard", // Added dashboard to subscription required routes
+  ]
 
   const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route))
   const requiresSubscription = subscriptionRequiredRoutes.some((route) => pathname.startsWith(route))
@@ -82,7 +90,7 @@ export async function middleware(request: NextRequest) {
 
       const url = request.nextUrl.clone()
       if (hasActiveSubscription) {
-        url.pathname = "/my-hearts"
+        url.pathname = "/dashboard" // Redirect to dashboard instead of my-hearts for consistency
       } else {
         url.pathname = "/select-plan"
       }
@@ -95,7 +103,7 @@ export async function middleware(request: NextRequest) {
 
     if (hasActiveSubscription) {
       const url = request.nextUrl.clone()
-      url.pathname = "/my-hearts"
+      url.pathname = "/dashboard" // Redirect to dashboard instead of my-hearts for consistency
       return NextResponse.redirect(url)
     }
   }

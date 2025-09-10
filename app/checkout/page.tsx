@@ -6,7 +6,9 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, CreditCard } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { ArrowLeft, CreditCard, X } from "lucide-react"
 import Link from "next/link"
 
 export default function CheckoutPage() {
@@ -15,6 +17,14 @@ export default function CheckoutPage() {
   const supabase = createClient()
   const [isLoading, setIsLoading] = useState(false)
   const [plan, setPlan] = useState<string | null>(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [cardDetails, setCardDetails] = useState({
+    cardNumber: "",
+    expiryDate: "",
+    cvv: "",
+    cardholderName: "",
+  })
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -34,9 +44,29 @@ export default function CheckoutPage() {
   }, [router, supabase, searchParams])
 
   const handlePayment = async () => {
-    setIsLoading(true)
+    setShowPaymentModal(true)
+  }
 
-    setTimeout(async () => {
+  const processPayment = async () => {
+    setIsLoading(true)
+    setPaymentError(null)
+
+    try {
+      // Basic validation
+      if (!cardDetails.cardNumber || !cardDetails.expiryDate || !cardDetails.cvv || !cardDetails.cardholderName) {
+        throw new Error("Please fill in all card details")
+      }
+
+      // Simulate API call delay
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+
+      // Simulate random payment success/failure for demo
+      const isSuccess = Math.random() > 0.3 // 70% success rate for demo
+
+      if (!isSuccess) {
+        throw new Error("Payment declined. Please try a different card.")
+      }
+
       // Update user metadata with subscription status
       const {
         data: { user },
@@ -51,7 +81,15 @@ export default function CheckoutPage() {
       }
 
       router.push("/dashboard")
-    }, 2000)
+    } catch (error) {
+      setPaymentError(error instanceof Error ? error.message : "Payment failed. Please try again.")
+      setIsLoading(false)
+    }
+  }
+
+  const handleCardInputChange = (field: string, value: string) => {
+    setCardDetails((prev) => ({ ...prev, [field]: value }))
+    setPaymentError(null) // Clear error when user starts typing
   }
 
   const planDetails = {
@@ -133,6 +171,86 @@ export default function CheckoutPage() {
 
               <Button
                 onClick={handlePayment}
+                className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white"
+              >
+                {`Subscribe for ${currentPlan.price}`}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-md bg-white">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-xl">Payment Details</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setShowPaymentModal(false)} disabled={isLoading}>
+                <X className="w-4 h-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <div className="text-sm font-medium">
+                  {currentPlan.name} Plan - {currentPlan.price}
+                </div>
+              </div>
+
+              {paymentError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-600">{paymentError}</p>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="cardholderName">Cardholder Name</Label>
+                  <Input
+                    id="cardholderName"
+                    placeholder="John Doe"
+                    value={cardDetails.cardholderName}
+                    onChange={(e) => handleCardInputChange("cardholderName", e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="cardNumber">Card Number</Label>
+                  <Input
+                    id="cardNumber"
+                    placeholder="1234 5678 9012 3456"
+                    value={cardDetails.cardNumber}
+                    onChange={(e) => handleCardInputChange("cardNumber", e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="expiryDate">Expiry Date</Label>
+                    <Input
+                      id="expiryDate"
+                      placeholder="MM/YY"
+                      value={cardDetails.expiryDate}
+                      onChange={(e) => handleCardInputChange("expiryDate", e.target.value)}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="cvv">CVV</Label>
+                    <Input
+                      id="cvv"
+                      placeholder="123"
+                      value={cardDetails.cvv}
+                      onChange={(e) => handleCardInputChange("cvv", e.target.value)}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                onClick={processPayment}
                 disabled={isLoading}
                 className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white"
               >
@@ -142,13 +260,13 @@ export default function CheckoutPage() {
                     Processing Payment...
                   </div>
                 ) : (
-                  `Subscribe for ${currentPlan.price}`
+                  `Pay ${currentPlan.price}`
                 )}
               </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
