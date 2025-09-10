@@ -1,65 +1,53 @@
-// Example: components/PlanSelection.jsx
-const plans = [
-  {
-    name: "Whisper",
-    price: "$8.99/month",
-    launchPrice: "$11.99/month",
-    features: [
-      "2 Premium cards per month",
-      "US Postage included",
-      "Personalized poetry",
-      "Occasion reminders",
-      "Cards expire after 2 months",
-      "Additional cards: $4.99 each",
-    ],
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_WHISPER_PRICE_ID, // Pass the Price ID from env
-  },
-  {
-    name: "Legacy",
-    price: "$25.99/month",
-    launchPrice: "$34.99/month",
-    features: [
-      "7 Premium cards per month",
-      "US Postage included",
-      "Personalized poetry",
-      "Occasion reminders",
-      "Priority customer support",
-      "Cards expire after 2 months",
-      "Additional cards: $4.99 each",
-    ],
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_LEGACY_PRICE_ID, // Pass the Price ID from env
-  },
-];
+// app/api/create-subscription/route.ts
+import { createClient } from "@supabase/supabase-js";
+import Stripe from "stripe";
+import type { NextRequest } from "next/server";
 
-export default function PlanSelection({ userId, email }) {
-  const subscribeToPlan = async (priceId) => {
-    const response = await fetch("/api/create-subscription", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, priceId, userId }),
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+function getPlanFromPrice(priceId: string): string {
+  if (priceId === process.env.STRIPE_WHISPER_PRICE_ID) return "whisper";
+  if (priceId === process.env.STRIPE_LEGACY_PRICE_ID) return "legacy";
+  return "whisper"; // default
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const { email, priceId, userId } = await req.json();
+
+    // Create a Stripe customer
+    const customer = await stripe.customers.create({ email });
+
+    // Create a Stripe subscription
+    const subscription = await stripe.subscriptions.create({
+      customer: customer.id,
+      items: [{ price: priceId }],
+      payment_behavior: "default_incomplete",
+      expand: ["latest_invoice.payment_intent"],
     });
-    const { clientSecret } = await response.json();
-    // Handle the clientSecret to complete the Stripe subscription flow
-  };
 
-  return (
-    <div>
-      {plans.map((plan) => (
-        <div key={plan.name}>
-          <h2>{plan.name}</h2>
-          <p>Price: {plan.price} (Launch: {plan.launchPrice})</p>
-          <ul>
-            {plan.features.map((feature) => (
-              <li key={feature}>{feature}</li>
-            ))}
-          </ul>
-          <button onClick={() => subscribeToPlan(plan.stripePriceId)}>
-            Choose {plan.name}
-          </button>
-        </div>
-      ))}
-    </div>
-  );
+    // Update the user's profile in Supabase
+    await supabase
+      .from("profiles")
+      .update({
+        stripe_customer_id: customer.id,
+        plan_type: getPlanFromPrice(priceId),
+      })
+      .eq("id", userId);
+
+    // Return the client secret for Stripe Elements
+    return Response.json({
+      clientSecret: subscription.latest_invoice.payment_intent.client_secret,
+    });
+  } catch (error: any) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function GET() {
+  return Response.json({ error: "Method not allowed" }, { status: 405 });
 }
