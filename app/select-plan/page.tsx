@@ -6,11 +6,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Check } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { loadStripe } from "@stripe/stripe-js"
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export default function SelectPlanPage() {
   const [selectedPlan, setSelectedPlan] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const [paymentError, setPaymentError] = useState<string>("")
   const router = useRouter()
   const supabase = createClient()
 
@@ -45,11 +49,49 @@ export default function SelectPlanPage() {
   const handlePlanSelection = async (planId: string) => {
     setIsLoading(true)
     setSelectedPlan(planId)
+    setPaymentError("")
 
     try {
-      router.push(`/checkout?plan=${planId}`)
-    } catch (error) {
-      console.error("Plan selection error:", error)
+      const stripe = await stripePromise
+      if (!stripe) throw new Error("Stripe failed to load")
+
+      const priceId =
+        planId === "whisper"
+          ? process.env.NEXT_PUBLIC_STRIPE_WHISPER_PRICE_ID
+          : process.env.NEXT_PUBLIC_STRIPE_LEGACY_PRICE_ID
+
+      const response = await fetch("/api/create-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user.email,
+          priceId,
+          userId: user.id,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      const { error } = await stripe.confirmPayment({
+        clientSecret: data.clientSecret,
+        confirmParams: {
+          return_url: `${window.location.origin}/dashboard`,
+        },
+      })
+
+      if (error) {
+        setPaymentError(error.message || "Payment failed. Please try another card.")
+      } else {
+        router.push("/dashboard")
+      }
+    } catch (error: any) {
+      console.error("Payment Error:", error)
+      setPaymentError(error.message || "Payment failed. Please try another card.")
+    } finally {
       setIsLoading(false)
     }
   }
@@ -117,7 +159,7 @@ export default function SelectPlanPage() {
                 disabled={isLoading}
                 className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 mt-6"
               >
-                {isLoading && selectedPlan === "whisper" ? "Processing..." : "Choose Whisper Plan"}
+                {isLoading && selectedPlan === "whisper" ? "Processing Payment..." : "Choose Whisper Plan"}
               </Button>
             </CardContent>
           </Card>
@@ -172,14 +214,24 @@ export default function SelectPlanPage() {
                 disabled={isLoading}
                 className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 mt-6"
               >
-                {isLoading && selectedPlan === "legacy" ? "Processing..." : "Choose Legacy Plan"}
+                {isLoading && selectedPlan === "legacy" ? "Processing Payment..." : "Choose Legacy Plan"}
               </Button>
             </CardContent>
           </Card>
         </div>
 
+        {paymentError && (
+          <div className="text-center mt-6">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md mx-auto">
+              <p className="text-red-600 font-medium">Payment Error</p>
+              <p className="text-red-500 text-sm mt-1">{paymentError}</p>
+              <p className="text-red-500 text-sm mt-2">Please try selecting your plan again with a different card.</p>
+            </div>
+          </div>
+        )}
+
         <div className="text-center mt-8">
-          <p className="text-sm text-gray-500">✅ Payment method verification required after plan selection</p>
+          <p className="text-sm text-gray-500">✅ Secure payment processing via Stripe</p>
         </div>
       </div>
     </div>
