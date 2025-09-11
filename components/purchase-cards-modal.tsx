@@ -63,12 +63,14 @@ const PurchaseCardsModal: React.FC<PurchaseCardsModalProps> = ({ isOpen, onClose
           <button
             className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded mr-2"
             onClick={onClose}
+            aria-label="Cancel card purchase and close modal"
           >
             Cancel
           </button>
           <button
             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
             onClick={handlePurchaseComplete}
+            aria-label={`Purchase ${quantity} card${quantity > 1 ? "s" : ""} for $${(quantity * 4.99).toFixed(2)}`}
           >
             Purchase
           </button>

@@ -65,6 +65,7 @@ export function OccasionAutocomplete({
               type="button"
               className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
               onClick={() => handleSuggestionClick(suggestion)}
+              aria-label={`Select ${suggestion} as occasion`}
             >
               {suggestion}
             </button>

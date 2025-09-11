@@ -4,17 +4,19 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Check } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
-import { loadStripe } from "@stripe/stripe-js"
-
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+import { StripeCheckoutForm } from "@/components/stripe-checkout-form"
 
 export default function SelectPlanPage() {
-  const [selectedPlan, setSelectedPlan] = useState<string>("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [selectedPlan, setSelectedPlan] = useState<{
+    id: string
+    name: string
+    amount: string
+    priceId: string
+  } | null>(null)
   const [user, setUser] = useState<any>(null)
-  const [paymentError, setPaymentError] = useState<string>("")
   const router = useRouter()
   const supabase = createClient()
 
@@ -46,54 +48,31 @@ export default function SelectPlanPage() {
     checkAuth()
   }, [router, supabase])
 
-  const handlePlanSelection = async (planId: string) => {
-    setIsLoading(true)
-    setSelectedPlan(planId)
-    setPaymentError("")
-
-    try {
-      const stripe = await stripePromise
-      if (!stripe) throw new Error("Stripe failed to load")
-
-      const priceId =
-        planId === "whisper"
-          ? process.env.NEXT_PUBLIC_STRIPE_WHISPER_PRICE_ID
-          : process.env.NEXT_PUBLIC_STRIPE_LEGACY_PRICE_ID
-
-      const response = await fetch("/api/create-subscription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: user.email,
-          priceId,
-          userId: user.id,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(data.error)
-      }
-
-      const { error } = await stripe.confirmPayment({
-        clientSecret: data.clientSecret,
-        confirmParams: {
-          return_url: `${window.location.origin}/dashboard`,
-        },
-      })
-
-      if (error) {
-        setPaymentError(error.message || "Payment failed. Please try another card.")
-      } else {
-        router.push("/dashboard")
-      }
-    } catch (error: any) {
-      console.error("Payment Error:", error)
-      setPaymentError(error.message || "Payment failed. Please try another card.")
-    } finally {
-      setIsLoading(false)
+  const handlePlanSelection = (planId: string) => {
+    const plans = {
+      whisper: {
+        id: "whisper",
+        name: "Whisper Plan",
+        amount: "8.99",
+        priceId: process.env.NEXT_PUBLIC_STRIPE_WHISPER_PRICE_ID!,
+      },
+      legacy: {
+        id: "legacy",
+        name: "Legacy Plan",
+        amount: "25.99",
+        priceId: process.env.NEXT_PUBLIC_STRIPE_LEGACY_PRICE_ID!,
+      },
     }
+
+    setSelectedPlan(plans[planId as keyof typeof plans])
+  }
+
+  const handlePaymentSuccess = () => {
+    router.push("/dashboard")
+  }
+
+  const handlePaymentCancel = () => {
+    setSelectedPlan(null)
   }
 
   if (!user) {
@@ -156,10 +135,9 @@ export default function SelectPlanPage() {
 
               <Button
                 onClick={() => handlePlanSelection("whisper")}
-                disabled={isLoading}
                 className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 mt-6"
               >
-                {isLoading && selectedPlan === "whisper" ? "Processing Payment..." : "Choose Whisper Plan"}
+                Choose Whisper Plan
               </Button>
             </CardContent>
           </Card>
@@ -211,29 +189,37 @@ export default function SelectPlanPage() {
 
               <Button
                 onClick={() => handlePlanSelection("legacy")}
-                disabled={isLoading}
                 className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 mt-6"
               >
-                {isLoading && selectedPlan === "legacy" ? "Processing Payment..." : "Choose Legacy Plan"}
+                Choose Legacy Plan
               </Button>
             </CardContent>
           </Card>
         </div>
 
-        {paymentError && (
-          <div className="text-center mt-6">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md mx-auto">
-              <p className="text-red-600 font-medium">Payment Error</p>
-              <p className="text-red-500 text-sm mt-1">{paymentError}</p>
-              <p className="text-red-500 text-sm mt-2">Please try selecting your plan again with a different card.</p>
-            </div>
-          </div>
-        )}
-
         <div className="text-center mt-8">
           <p className="text-sm text-gray-500">✅ Secure payment processing via Stripe</p>
         </div>
       </div>
+
+      <Dialog open={!!selectedPlan} onOpenChange={() => setSelectedPlan(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Complete Your Subscription</DialogTitle>
+          </DialogHeader>
+          {selectedPlan && (
+            <StripeCheckoutForm
+              priceId={selectedPlan.priceId}
+              planName={selectedPlan.name}
+              amount={selectedPlan.amount}
+              userEmail={user.email}
+              userId={user.id}
+              onSuccess={handlePaymentSuccess}
+              onCancel={handlePaymentCancel}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

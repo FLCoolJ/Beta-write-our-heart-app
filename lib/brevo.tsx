@@ -6,7 +6,7 @@ export async function sendWelcomeEmail(email: string, firstName: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      sender: { name: "Write Our Heart", email: "info@writeourheart.com" },
+      sender: { name: process.env.FROM_NAME!, email: process.env.FROM_EMAIL! },
       to: [{ email, name: firstName }],
       subject: "Welcome to Write Our Heart!",
       htmlContent: `<h1>Welcome ${firstName}!</h1><p>Your account is ready.</p>`,

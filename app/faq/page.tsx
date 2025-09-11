@@ -365,27 +365,47 @@ export default function FAQ() {
               </a>
             </p>
             <div className="flex flex-wrap gap-2">
-              <button onClick={() => handleSupportClick("Payment Security")} className="inline-block">
+              <button
+                onClick={() => handleSupportClick("Payment Security")}
+                className="inline-block"
+                aria-label="Learn more about payment security and protection"
+              >
                 <Badge variant="outline" className="hover:bg-gray-50 cursor-pointer transition-colors">
                   Payment Security
                 </Badge>
               </button>
-              <button onClick={() => handleSupportClick("Data Protection")} className="inline-block">
+              <button
+                onClick={() => handleSupportClick("Data Protection")}
+                className="inline-block"
+                aria-label="Learn more about data protection policies"
+              >
                 <Badge variant="outline" className="hover:bg-gray-50 cursor-pointer transition-colors">
                   Data Protection
                 </Badge>
               </button>
-              <button onClick={() => handleSupportClick("Privacy Policy")} className="inline-block">
+              <button
+                onClick={() => handleSupportClick("Privacy Policy")}
+                className="inline-block"
+                aria-label="Read our privacy policy and data handling practices"
+              >
                 <Badge variant="outline" className="hover:bg-gray-50 cursor-pointer transition-colors">
                   Privacy Policy
                 </Badge>
               </button>
-              <button onClick={() => handleSupportClick("SSL Certification")} className="inline-block">
+              <button
+                onClick={() => handleSupportClick("SSL Certification")}
+                className="inline-block"
+                aria-label="Learn about our SSL certification and security measures"
+              >
                 <Badge variant="outline" className="hover:bg-gray-50 cursor-pointer transition-colors">
                   SSL Certification
                 </Badge>
               </button>
-              <button onClick={() => handleSupportClick("USPS Validated")} className="inline-block">
+              <button
+                onClick={() => handleSupportClick("USPS Validated")}
+                className="inline-block"
+                aria-label="Learn about USPS address validation process"
+              >
                 <Badge variant="outline" className="hover:bg-gray-50 cursor-pointer transition-colors">
                   USPS Validated
                 </Badge>
