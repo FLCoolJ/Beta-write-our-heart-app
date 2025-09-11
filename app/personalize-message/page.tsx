@@ -48,12 +48,17 @@ export default function PersonalizeMessage() {
       const userData = JSON.parse(localStorage.getItem("currentUser") || "{}")
       setUser(userData)
 
-      const heart = userData.hearts?.find((h: any) => h.id === heartId)
-      if (heart) {
-        setHeartData(heart)
-        setSelectedTone(heart.tone || "")
-        setPersonalMessage(heart.personalMessage || "")
-        setInterests(heart.interests || "")
+      // Load hearts from the correct localStorage key
+      const heartsData = localStorage.getItem("userHearts")
+      if (heartsData) {
+        const hearts = JSON.parse(heartsData)
+        const heart = hearts.find((h: any) => h.id === heartId)
+        if (heart) {
+          setHeartData(heart)
+          setSelectedTone(heart.tone || "")
+          setPersonalMessage(heart.personalMessage || "")
+          setInterests(heart.interests || "")
+        }
       }
     }
   }, [heartId])
@@ -181,20 +186,22 @@ export default function PersonalizeMessage() {
       return
     }
 
-    const userData = JSON.parse(localStorage.getItem("currentUser") || "{}")
-    const heartIndex = userData.hearts.findIndex((h: any) => h.id === heartId)
+    const heartsData = localStorage.getItem("userHearts")
+    if (heartsData) {
+      const hearts = JSON.parse(heartsData)
+      const heartIndex = hearts.findIndex((h: any) => h.id === heartId)
 
-    if (heartIndex !== -1) {
-      userData.hearts[heartIndex] = {
-        ...userData.hearts[heartIndex],
-        tone: selectedTone,
-        personalMessage,
-        interests,
-        updatedAt: new Date().toISOString(),
+      if (heartIndex !== -1) {
+        hearts[heartIndex] = {
+          ...hearts[heartIndex],
+          tone: selectedTone,
+          personalMessage,
+          interests,
+          updatedAt: new Date().toISOString(),
+        }
+
+        localStorage.setItem("userHearts", JSON.stringify(hearts))
       }
-
-      localStorage.setItem("currentUser", JSON.stringify(userData))
-      localStorage.setItem("user", JSON.stringify(userData))
     }
 
     router.push("/confirmation?heartId=" + heartId)

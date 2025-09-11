@@ -212,11 +212,7 @@ export function ProfessionalCardGenerator({ heartData, occasion }: ProfessionalC
               {/* Step-specific content */}
               {step.id === "artwork" && step.data?.artworkUrl && (
                 <div className="mt-3 space-y-2">
-                  <img
-                    src={step.data.artworkUrl || "/placeholder.svg"}
-                    alt={`Generated artwork for ${occasion} card in ${heartData.tone} style`}
-                    className="w-full max-w-xs rounded-lg border"
-                  />
+                  <img src={step.data.artworkUrl || "/placeholder.svg"} className="w-full max-w-xs rounded-lg border" />
                   <p className="text-sm text-green-600">✓ High-quality artwork generated</p>
                   {step.data.prompt && (
                     <details className="text-xs">
@@ -237,21 +233,11 @@ export function ProfessionalCardGenerator({ heartData, occasion }: ProfessionalC
               {step.id === "assembly" && step.data?.canvaEditUrl && (
                 <div className="mt-3 space-y-2">
                   <div className="flex gap-2">
-                    <Button
-                      onClick={() => window.open(step.data.canvaEditUrl, "_blank")}
-                      variant="outline"
-                      size="sm"
-                      aria-label="Edit card design in Canva"
-                    >
+                    <Button onClick={() => window.open(step.data.canvaEditUrl, "_blank")} variant="outline" size="sm">
                       <ExternalLink className="w-4 h-4 mr-2" />
                       Edit in Canva
                     </Button>
-                    <Button
-                      onClick={() => window.open(step.data.canvaEditUrl, "_blank")}
-                      variant="outline"
-                      size="sm"
-                      aria-label="Preview card design in Canva"
-                    >
+                    <Button onClick={() => window.open(step.data.canvaEditUrl, "_blank")} variant="outline" size="sm">
                       <Eye className="w-4 h-4 mr-2" />
                       Preview
                     </Button>
@@ -265,7 +251,6 @@ export function ProfessionalCardGenerator({ heartData, occasion }: ProfessionalC
                   <Button
                     onClick={() => window.open(results.downloadUrl, "_blank")}
                     className="bg-green-600 hover:bg-green-700 text-white py-3"
-                    aria-label="Download print-ready PDF file"
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Download Print-Ready PDF
@@ -312,7 +297,6 @@ export function ProfessionalCardGenerator({ heartData, occasion }: ProfessionalC
                 onClick={() => window.open(generateCanvaTemplateUrl(occasion), "_blank")}
                 variant="outline"
                 size="sm"
-                aria-label="Open Canva template for manual card creation"
               >
                 <ExternalLink className="w-4 h-4 mr-2" />
                 Open Canva Template

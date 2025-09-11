@@ -194,11 +194,7 @@ export function SimpleCardGenerator({ heartData, occasion }: SimpleCardGenerator
                 <CheckCircle className="w-4 h-4 text-green-600" />
                 <span className="text-sm text-green-600">Artwork generated successfully</span>
               </div>
-              <img
-                src={results.artworkUrl || "/placeholder.svg"}
-                alt={`Generated ${occasion} card artwork in ${heartData.tone} style for ${heartData.name}`}
-                className="w-full max-w-xs rounded-lg border"
-              />
+              <img src={results.artworkUrl || "/placeholder.svg"} className="w-full max-w-xs rounded-lg border" />
             </div>
           )}
 
@@ -227,32 +223,17 @@ export function SimpleCardGenerator({ heartData, occasion }: SimpleCardGenerator
                   Preview Card
                 </Button>
 
-                <Button
-                  onClick={downloadCard}
-                  variant="outline"
-                  size="sm"
-                  aria-label="Download card as HTML file for printing"
-                >
+                <Button onClick={downloadCard} variant="outline" size="sm">
                   <Download className="w-4 h-4 mr-2" />
                   Download HTML
                 </Button>
 
-                <Button
-                  onClick={printCard}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                  size="sm"
-                  aria-label="Print card directly from browser"
-                >
+                <Button onClick={printCard} className="bg-blue-600 hover:bg-blue-700 text-white" size="sm">
                   <Printer className="w-4 h-4 mr-2" />
                   Print Card
                 </Button>
 
-                <Button
-                  onClick={createBatch}
-                  className="bg-orange-600 hover:bg-orange-700 text-white"
-                  size="sm"
-                  aria-label="Create print batch with mailing labels for professional printing"
-                >
+                <Button onClick={createBatch} className="bg-orange-600 hover:bg-orange-700 text-white" size="sm">
                   <Download className="w-4 h-4 mr-2" />
                   Create Print Batch
                 </Button>

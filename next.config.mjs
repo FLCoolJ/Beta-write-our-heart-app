@@ -44,7 +44,15 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "frame-ancestors 'none'",
+            value: `
+              default-src 'self';
+              script-src 'self' https://api.v0.dev https://cdn.jsdelivr.net https://*.pusher.com;
+              connect-src 'self' https://api.v0.dev https://baqnsdpdqhvvqlepydlm.supabase.co https://api.stripe.com https://api.brevo.com;
+              img-src 'self' data: https://*.supabase.co;
+              style-src 'self' 'unsafe-inline';
+              font-src 'self' https://*.vusercontent.net;
+              frame-src 'self' https://js.stripe.com;
+            `,
           },
         ],
       },

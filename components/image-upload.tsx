@@ -132,16 +132,7 @@ export function ImageUpload({ onImageUpload, currentImage, title, description }:
             </div>
           )}
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleChange}
-            className="hidden"
-            id="image-upload-input"
-            name="image-upload"
-            aria-label="Upload image file for artwork"
-          />
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleChange} className="hidden" />
         </CardContent>
       </Card>
     </div>
