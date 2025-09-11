@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  poweredByHeader: false,
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -18,6 +19,15 @@ const nextConfig = {
   async headers() {
     return [
       {
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
         source: '/:path*',
         headers: [
           {
@@ -26,11 +36,15 @@ const nextConfig = {
           },
           {
             key: 'Cache-Control',
-            value: 'public, max-age=3600',
+            value: 'no-cache',
           },
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: "frame-ancestors 'none'",
           },
         ],
       },

@@ -102,7 +102,7 @@ export function ImageUpload({ onImageUpload, currentImage, title, description }:
               </div>
 
               <div className="flex gap-2">
-                <Button onClick={openFileDialog} variant="outline" size="sm" className="flex-1">
+                <Button onClick={openFileDialog} variant="outline" size="sm" className="flex-1 bg-transparent">
                   <Upload className="w-4 h-4 mr-2" />
                   Replace Image
                 </Button>
@@ -132,7 +132,15 @@ export function ImageUpload({ onImageUpload, currentImage, title, description }:
             </div>
           )}
 
-          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleChange} className="hidden" />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleChange}
+            className="hidden"
+            id="image-upload-input"
+            name="image-upload"
+          />
         </CardContent>
       </Card>
     </div>
