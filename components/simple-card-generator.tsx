@@ -196,7 +196,7 @@ export function SimpleCardGenerator({ heartData, occasion }: SimpleCardGenerator
               </div>
               <img
                 src={results.artworkUrl || "/placeholder.svg"}
-                alt="Generated artwork"
+                alt={`Generated ${occasion} card artwork in ${heartData.tone} style for ${heartData.name}`}
                 className="w-full max-w-xs rounded-lg border"
               />
             </div>
@@ -227,17 +227,32 @@ export function SimpleCardGenerator({ heartData, occasion }: SimpleCardGenerator
                   Preview Card
                 </Button>
 
-                <Button onClick={downloadCard} variant="outline" size="sm">
+                <Button
+                  onClick={downloadCard}
+                  variant="outline"
+                  size="sm"
+                  aria-label="Download card as HTML file for printing"
+                >
                   <Download className="w-4 h-4 mr-2" />
                   Download HTML
                 </Button>
 
-                <Button onClick={printCard} className="bg-blue-600 hover:bg-blue-700 text-white" size="sm">
+                <Button
+                  onClick={printCard}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  size="sm"
+                  aria-label="Print card directly from browser"
+                >
                   <Printer className="w-4 h-4 mr-2" />
                   Print Card
                 </Button>
 
-                <Button onClick={createBatch} className="bg-orange-600 hover:bg-orange-700 text-white" size="sm">
+                <Button
+                  onClick={createBatch}
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                  size="sm"
+                  aria-label="Create print batch with mailing labels for professional printing"
+                >
                   <Download className="w-4 h-4 mr-2" />
                   Create Print Batch
                 </Button>

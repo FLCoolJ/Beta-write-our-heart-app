@@ -140,6 +140,7 @@ export function ImageUpload({ onImageUpload, currentImage, title, description }:
             className="hidden"
             id="image-upload-input"
             name="image-upload"
+            aria-label="Upload image file for artwork"
           />
         </CardContent>
       </Card>

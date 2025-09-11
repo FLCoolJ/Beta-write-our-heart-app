@@ -305,7 +305,12 @@ export function CardProductionDashboard() {
                           {step.status === "completed" && step.previewData && (
                             <Dialog>
                               <DialogTrigger asChild>
-                                <Button variant="outline" size="sm" className="flex items-center gap-1 bg-transparent">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex items-center gap-1 bg-transparent"
+                                  aria-label={`Preview ${step.previewData.title}`}
+                                >
                                   <Eye className="h-4 w-4" />
                                   Preview
                                 </Button>
@@ -318,7 +323,7 @@ export function CardProductionDashboard() {
                                   {step.previewData.type === "image" && (
                                     <img
                                       src={step.previewData.content || "/placeholder.svg"}
-                                      alt="Generated Artwork"
+                                      alt={`Preview of ${step.previewData.title}`}
                                       className="rounded-lg w-full"
                                     />
                                   )}
@@ -355,6 +360,7 @@ export function CardProductionDashboard() {
                         <Button
                           onClick={() => window.open(downloadUrl, "_blank")}
                           className="bg-green-600 hover:bg-green-700"
+                          aria-label="Download completed greeting card as PDF"
                         >
                           <Download className="h-4 w-4 mr-2" />
                           Download Card

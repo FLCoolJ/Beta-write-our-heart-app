@@ -144,7 +144,7 @@ export function HybridCardGenerator({ heartData, occasion }: HybridCardGenerator
             <CardContent className="space-y-4">
               <img
                 src={results.artworkUrl || "/placeholder.svg"}
-                alt="Generated artwork"
+                alt={`Generated artwork for ${occasion} card with ${heartData.tone} tone`}
                 className="w-full max-w-md mx-auto rounded-lg border shadow-lg"
               />
               <div className="flex gap-2">
@@ -152,7 +152,12 @@ export function HybridCardGenerator({ heartData, occasion }: HybridCardGenerator
                   <ExternalLink className="w-4 h-4 mr-2" />
                   View Full Size
                 </Button>
-                <Button onClick={() => copyToClipboard(results.artworkUrl!, "Artwork URL")} variant="outline" size="sm">
+                <Button
+                  onClick={() => copyToClipboard(results.artworkUrl!, "Artwork URL")}
+                  variant="outline"
+                  size="sm"
+                  aria-label="Copy artwork URL to clipboard"
+                >
                   <Copy className="w-4 h-4 mr-2" />
                   Copy URL
                 </Button>
@@ -178,7 +183,12 @@ export function HybridCardGenerator({ heartData, occasion }: HybridCardGenerator
               <div className="p-4 bg-gray-50 border rounded-lg">
                 <p className="italic text-gray-800 leading-relaxed whitespace-pre-line">{results.poetry}</p>
               </div>
-              <Button onClick={() => copyToClipboard(results.poetry!, "Poetry")} variant="outline" size="sm">
+              <Button
+                onClick={() => copyToClipboard(results.poetry!, "Poetry")}
+                variant="outline"
+                size="sm"
+                aria-label="Copy generated poetry to clipboard"
+              >
                 <Copy className="w-4 h-4 mr-2" />
                 Copy Poetry
               </Button>
@@ -209,11 +219,16 @@ export function HybridCardGenerator({ heartData, occasion }: HybridCardGenerator
                 <Button
                   onClick={() => window.open(results.canvaUrl, "_blank")}
                   className="bg-purple-600 hover:bg-purple-700 text-white"
+                  aria-label="Open Canva template in new tab to assemble card"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
                   Open Canva Template
                 </Button>
-                <Button onClick={() => setStep("input")} variant="outline">
+                <Button
+                  onClick={() => setStep("input")}
+                  variant="outline"
+                  aria-label="Generate another card with different settings"
+                >
                   Generate Another
                 </Button>
               </div>
